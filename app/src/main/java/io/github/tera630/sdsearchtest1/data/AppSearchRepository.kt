@@ -4,6 +4,7 @@ import android.content.Context
 import android.net.Uri
 import androidx.appsearch.app.AppSearchSession
 import androidx.appsearch.app.PutDocumentsRequest
+import androidx.appsearch.app.SearchSpec
 import androidx.appsearch.app.SetSchemaRequest
 import androidx.appsearch.localstorage.LocalStorage
 import androidx.documentfile.provider.DocumentFile
@@ -11,6 +12,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.io.BufferedReader
 import java.io.InputStreamReader
+import java.text.Normalizer
 import java.util.UUID
 
 class AppSearchRepository(private val context: Context) {
@@ -80,6 +82,42 @@ class AppSearchRepository(private val context: Context) {
         context.contentResolver.openInputStream(uri)?.use { ins ->
             BufferedReader(InputStreamReader(ins, Charsets.UTF_8)).readText()
         } ?: ""
+    }
+    suspend fun search(query: String, limit: Int = 100): List<SearchHit> = withContext(Dispatchers.IO) {
+        val s = ensureSession()
+
+        // 前処理（NFKC 正規化 + 前後空白除去）
+        val q = Normalizer.normalize(query.trim(), Normalizer.Form.NFKC)
+
+        val spec = SearchSpec.Builder()
+            .addFilterNamespaces("notes")
+            .setTermMatch(SearchSpec.TERM_MATCH_PREFIX) // 前方一致
+            .setSnippetCount(1) // 各ドキュメント1スニペット
+            .setMaxSnippetSize(120)
+            .setSnippetCountPerProperty(1)
+            .setRankingStrategy(SearchSpec.RANKING_STRATEGY_RELEVANCE_SCORE)
+            .setResultCountPerPage(limit)
+            .build()
+
+        val results = s.search(q, spec)
+        val page = results.nextPageAsync.get()
+
+        page.map { r ->
+            val doc = r.genericDocument
+            val path = doc.getPropertyString("path")!!
+            val title = doc.getPropertyString("title")!!
+            val snippetObj = doc.getProperty("snippet")// 1.1.0系で取得方法が変わる場合あり
+            // content のスニペット抽出（安全策：自前でも一行スニペットを作る）
+            val content = doc.getPropertyString("content") ?: ""
+            val hitLine = content.lineSequence().firstOrNull { it.contains(query) } ?: content.take(120)
+
+            SearchHit(
+                id = doc.id,
+                path = path,
+                title = title,
+                snippet = hitLine
+            )
+        }
     }
 
     private fun stableId(path: String): String =
