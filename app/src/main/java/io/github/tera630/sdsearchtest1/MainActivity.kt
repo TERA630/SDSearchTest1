@@ -3,45 +3,47 @@ package io.github.tera630.sdsearchtest1
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
-import androidx.activity.enableEdgeToEdge
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
-import androidx.compose.ui.Modifier
-import androidx.compose.ui.tooling.preview.Preview
-import io.github.tera630.sdsearchtest1.ui.theme.SDsearchtest1Theme
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.ViewModelProvider
+import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.navigation.NavType
+import androidx.navigation.compose.NavHost
+import androidx.navigation.compose.composable
+import androidx.navigation.compose.rememberNavController
+import androidx.navigation.navArgument
+import io.github.tera630.sdsearchtest1.data.AppSearchRepository
+import io.github.tera630.sdsearchtest1.ui.DetailScreen
+import io.github.tera630.sdsearchtest1.ui.MainViewModel
+import io.github.tera630.sdsearchtest1.ui.SearchScreen
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        enableEdgeToEdge()
+        val repo = AppSearchRepository(this)
+
         setContent {
-            SDsearchtest1Theme {
-                Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
-                    Greeting(
-                        name = "Android",
-                        modifier = Modifier.padding(innerPadding)
-                    )
+            val nav = rememberNavController()
+            val vm: MainViewModel = viewModel(factory = object : ViewModelProvider.Factory {
+                @Suppress("UNCHECKED_CAST")
+                override fun <T : ViewModel> create(modelClass: Class<T>): T {
+                    return MainViewModel(repo) as T
+                }
+            })
+
+            NavHost(navController = nav, startDestination = "search") {
+                composable("search") {
+                    SearchScreen(vm = vm, onOpen = { path ->
+                        nav.navigate("detail?path=$path")
+                    })
+                }
+                composable(
+                    route = "detail?path={path}",
+                    arguments = listOf(navArgument("path") { type = NavType.StringType; defaultValue = "" })
+                ) { backStackEntry ->
+                    val path = backStackEntry.arguments?.getString("path").orEmpty()
+                    DetailScreen(path = path, repo = repo) { nav.popBackStack() }
                 }
             }
         }
-    }
-}
-
-@Composable
-fun Greeting(name: String, modifier: Modifier = Modifier) {
-    Text(
-        text = "Hello $name!",
-        modifier = modifier
-    )
-}
-
-@Preview(showBackground = true)
-@Composable
-fun GreetingPreview() {
-    SDsearchtest1Theme {
-        Greeting("Android")
     }
 }
