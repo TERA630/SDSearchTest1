@@ -78,6 +78,8 @@ dependencies {
 
     // 外部ストレージ（SAF）ユーティリティ
     implementation(libs.documentfile)
+    implementation(libs.datastore)
+
 
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)

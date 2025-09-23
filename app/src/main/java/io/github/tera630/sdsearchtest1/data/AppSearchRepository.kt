@@ -2,6 +2,7 @@ package io.github.tera630.sdsearchtest1.data
 
 import android.content.Context
 import android.net.Uri
+import android.util.Log
 import androidx.appsearch.app.AppSearchSession
 import androidx.appsearch.app.PutDocumentsRequest
 import androidx.appsearch.app.SearchSpec
@@ -14,6 +15,7 @@ import java.io.BufferedReader
 import java.io.InputStreamReader
 import java.text.Normalizer
 import java.util.UUID
+import io.github.tera630.sdsearchtest1.data.NoteDoc
 
 class AppSearchRepository(private val context: Context) {
 
@@ -29,6 +31,7 @@ class AppSearchRepository(private val context: Context) {
 
             val req = SetSchemaRequest.Builder()
                 .addDocumentClasses(NoteDoc::class.java)
+                .setForceOverride(true)
                 .build()
             resolvedSession.setSchemaAsync(req).get() // with Suspend
 
@@ -38,9 +41,7 @@ class AppSearchRepository(private val context: Context) {
 
     suspend fun indexAllFromTree(treeUri: Uri): Int = withContext(Dispatchers.IO) {
         val s = ensureSession() // notes-db の SearchSession（Schema済）
-
         val notes = mutableListOf<NoteDoc>()   // ← NoteDoc を貯める
-
         val root = DocumentFile.fromTreeUri(context, treeUri) ?: return@withContext 0
 
         fun walk(dir: DocumentFile) {
@@ -66,13 +67,18 @@ class AppSearchRepository(private val context: Context) {
             }
         }
         walk(root)
+        // 空なら早期リターン（走査ミスの検知に役立つ）
+        if (notes.isEmpty()) return@withContext 0
+        Log.d("AppSearch","notes.size=${notes.size}")
 
         // バッチ投入（100件ずつ）
         notes.chunked(100).forEach { chunk ->
             val req = PutDocumentsRequest.Builder()
                 .addDocuments(chunk)       // ← 型付きドキュメント
                 .build()
-            s.putAsync(req).get()
+                Log.d("AppSearch","put chunk.size=${chunk.size}")
+                s.putAsync(req).get()
+
         }
         notes.size
     }

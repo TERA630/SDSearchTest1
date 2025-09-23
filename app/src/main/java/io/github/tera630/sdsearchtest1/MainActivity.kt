@@ -12,6 +12,7 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import io.github.tera630.sdsearchtest1.data.AppSearchRepository
+import io.github.tera630.sdsearchtest1.data.IndexStateStore
 import io.github.tera630.sdsearchtest1.ui.DetailScreen
 import io.github.tera630.sdsearchtest1.ui.MainViewModel
 import io.github.tera630.sdsearchtest1.ui.SearchScreen
@@ -20,13 +21,14 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         val repo = AppSearchRepository(this)
+        val store = IndexStateStore(this)
 
         setContent {
             val nav = rememberNavController()
             val vm: MainViewModel = viewModel(factory = object : ViewModelProvider.Factory {
                 @Suppress("UNCHECKED_CAST")
                 override fun <T : ViewModel> create(modelClass: Class<T>): T {
-                    return MainViewModel(repo) as T
+                    return MainViewModel(repo, store = store) as T
                 }
             })
 
