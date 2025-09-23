@@ -16,6 +16,7 @@ import java.io.InputStreamReader
 import java.text.Normalizer
 import java.util.UUID
 import io.github.tera630.sdsearchtest1.data.NoteDoc
+import androidx.core.net.toUri
 
 class AppSearchRepository(private val context: Context) {
 
@@ -43,30 +44,27 @@ class AppSearchRepository(private val context: Context) {
         val s = ensureSession() // notes-db の SearchSession（Schema済）
         val notes = mutableListOf<NoteDoc>()   // ← NoteDoc を貯める
         val root = DocumentFile.fromTreeUri(context, treeUri) ?: return@withContext 0
+        Log.d("list files","root.listFiles().size=${root.listFiles().size}")
 
-        fun walk(dir: DocumentFile) {
-            dir.listFiles().forEach { f ->
-                if (f.isDirectory) {
-                    walk(f)
-                } else if (f.isFile && f.name?.endsWith(".md", ignoreCase = true) == true) {
-                    context.contentResolver.openInputStream(f.uri)?.use { ins ->
-                        val text = ins.bufferedReader(Charsets.UTF_8).readText()
-                        val title = f.name?.removeSuffix(".md") ?: "untitled"
-                        val id = stableId(f.uri.toString())
-                        val updatedAt = (f.lastModified()).takeIf { it > 0 } ?: System.currentTimeMillis()
+        root.listFiles().forEach { f ->
+            if (f.isFile && f.name?.endsWith(".md", ignoreCase = true) == true) {
+                context.contentResolver.openInputStream(f.uri)?.use { ins ->
+                    val text = ins.bufferedReader(Charsets.UTF_8).readText()
+                    val title = f.name?.removeSuffix(".md") ?: "untitled"
+                    val id = stableId(f.uri.toString())
+                    val updatedAt = (f.lastModified()).takeIf { it > 0 } ?: System.currentTimeMillis()
 
-                        notes += NoteDoc(
-                            id = id,
-                            path = f.uri.toString(),
-                            title = title,
-                            content = text,
-                            updatedAt = updatedAt
+                    notes += NoteDoc(
+                        id = id,
+                        path = f.uri.toString(),
+                        title = title,
+                        content = text,
+                        updatedAt = updatedAt
                         )
                     }
                 }
-            }
         }
-        walk(root)
+
         // 空なら早期リターン（走査ミスの検知に役立つ）
         if (notes.isEmpty()) return@withContext 0
         Log.d("AppSearch","notes.size=${notes.size}")
@@ -76,15 +74,16 @@ class AppSearchRepository(private val context: Context) {
             val req = PutDocumentsRequest.Builder()
                 .addDocuments(chunk)       // ← 型付きドキュメント
                 .build()
-                Log.d("AppSearch","put chunk.size=${chunk.size}")
-                s.putAsync(req).get()
+
+            Log.d("AppSearch","put chunk.size=${chunk.size}")
+            s.putAsync(req).get()
 
         }
         notes.size
     }
 
     suspend fun getMarkdownByPath(path: String): String = withContext(Dispatchers.IO) {
-        val uri = Uri.parse(path)
+        val uri = path.toUri()
         context.contentResolver.openInputStream(uri)?.use { ins ->
             BufferedReader(InputStreamReader(ins, Charsets.UTF_8)).readText()
         } ?: ""

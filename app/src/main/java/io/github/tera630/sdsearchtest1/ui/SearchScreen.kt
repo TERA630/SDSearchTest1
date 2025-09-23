@@ -1,6 +1,7 @@
 package io.github.tera630.sdsearchtest1.ui
 
 import android.net.Uri
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -89,9 +90,16 @@ private fun ResultList(hits: List<SearchHit>, onOpen: (String) -> Unit) {
                 supportingContent = {
                     Text(h.snippet, maxLines = 2, overflow = TextOverflow.Ellipsis)
                 },
-                modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp)
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 4.dp)
+                    .clickable( enabled = true,
+                        onClick = {
+                            onOpen(h.path)
+                        }
+                    )
             )
-            Divider()
+            HorizontalDivider()
         }
     }
 }

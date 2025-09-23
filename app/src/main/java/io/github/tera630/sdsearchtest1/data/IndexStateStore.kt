@@ -8,7 +8,7 @@ import androidx.datastore.preferences.preferencesDataStore
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 
-private val Context.dataStore by preferencesDataStore("sdsearch_prefs")
+private val Context.dataStore by preferencesDataStore("sdSearch_prefs")
 
 class IndexStateStore(private val context: Context) {
     private object Keys {

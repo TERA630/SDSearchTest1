@@ -1,5 +1,6 @@
 package io.github.tera630.sdsearchtest1
 
+import android.net.Uri
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -35,7 +36,7 @@ class MainActivity : ComponentActivity() {
             NavHost(navController = nav, startDestination = "search") {
                 composable("search") {
                     SearchScreen(vm = vm, onOpen = { path ->
-                        nav.navigate("detail?path=$path")
+                        nav.navigate("detail?path=${Uri.encode(path)}")
                     })
                 }
                 composable(
