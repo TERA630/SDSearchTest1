@@ -40,29 +40,45 @@ class AppSearchRepository(private val context: Context) {
             resolvedSession
         }
 
-    suspend fun indexAllFromTree(treeUri: Uri): Int = withContext(Dispatchers.IO) {
+    suspend fun indexAllFromTree(treeUri: Uri,
+             onProgress:(Processed: Int, Total: Int) -> Unit ={_,_->}
+    ): Int = withContext(Dispatchers.IO) {
+
         val s = ensureSession() // notes-db の SearchSession（Schema済）
-        val notes = mutableListOf<NoteDoc>()   // ← NoteDoc を貯める
         val root = DocumentFile.fromTreeUri(context, treeUri) ?: return@withContext 0
-        Log.d("list files","root.listFiles().size=${root.listFiles().size}")
+    //  まず 下位ディレクトリも含め.md を全部集めて総数を出す（1パス）
 
-        root.listFiles().forEach { f ->
-            if (f.isFile && f.name?.endsWith(".md", ignoreCase = true) == true) {
-                context.contentResolver.openInputStream(f.uri)?.use { ins ->
-                    val text = ins.bufferedReader(Charsets.UTF_8).readText()
-                    val title = f.name?.removeSuffix(".md") ?: "untitled"
-                    val id = stableId(f.uri.toString())
-                    val updatedAt = (f.lastModified()).takeIf { it > 0 } ?: System.currentTimeMillis()
+        fun collect(dir: DocumentFile, out: MutableList<DocumentFile>) {
+            dir.listFiles().forEach { f ->
+                if (f.isDirectory) collect(f, out)
+                else if (f.isFile && f.name?.endsWith(".md", ignoreCase = true) == true) out += f
+            }
+        }
 
-                    notes += NoteDoc(
-                        id = id,
-                        path = f.uri.toString(),
-                        title = title,
-                        content = text,
-                        updatedAt = updatedAt
-                        )
-                    }
-                }
+        val mdFiles = mutableListOf<DocumentFile>().also{ collect(root, it) }
+        val total = mdFiles.size
+        Log.d("list files","root.listFiles().size=${total}")
+        onProgress(0,total)
+
+        // 2Pass Making Index
+        val progressed = 0;
+        val notes = mutableListOf<NoteDoc>()   // ← NoteDoc を貯める
+
+        for (f in mdFiles) {
+            context.contentResolver.openInputStream(f.uri)?.use { ins ->
+                val text = ins.bufferedReader(Charsets.UTF_8).readText()
+                val title = f.name?.removeSuffix(".md") ?: "untitled"
+                val id = stableId(f.uri.toString())
+                val updatedAt = (f.lastModified()).takeIf { it > 0 } ?: System.currentTimeMillis()
+
+                notes += NoteDoc(
+                    id = id,
+                    path = f.uri.toString(),
+                    title = title,
+                    content = text,
+                    updatedAt = updatedAt
+                )
+            }
         }
 
         // 空なら早期リターン（走査ミスの検知に役立つ）
@@ -114,7 +130,8 @@ class AppSearchRepository(private val context: Context) {
             val snippetObj = doc.getProperty("snippet")// 1.1.0系で取得方法が変わる場合あり
             // content のスニペット抽出（安全策：自前でも一行スニペットを作る）
             val content = doc.getPropertyString("content") ?: ""
-            val hitLine = content.lineSequence().firstOrNull { it.contains(query) } ?: content.take(120)
+            val hitLine =
+                content.lineSequence().firstOrNull { it.contains(query) } ?: content.take(120)
 
             SearchHit(
                 id = doc.id,
@@ -124,7 +141,6 @@ class AppSearchRepository(private val context: Context) {
             )
         }
     }
-
     private fun stableId(path: String): String =
         UUID.nameUUIDFromBytes(path.toByteArray()).toString()
 }

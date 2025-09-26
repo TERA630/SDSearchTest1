@@ -23,7 +23,8 @@ fun SearchScreen(
     var q by remember { mutableStateOf("") }
     val hits by vm.hits.collectAsState()
     val indexing by vm.isIndexing.collectAsState()
-    val lastIndexedAt by vm.lastIndexedAt.collectAsState()
+    val lastIndexedAt by vm.lastIndexedAt.collectAsState(initial = null)
+    val progress by vm.progress.collectAsState()
 
     Scaffold(
         topBar = {
@@ -40,24 +41,42 @@ fun SearchScreen(
                 Text("インデックス未作成です。SDカードのフォルダを選んでインデックスを作成してください。")
                 Spacer(Modifier.height(8.dp))
                 if (indexing) {
-                    LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
-                    Spacer(Modifier.height(8.dp))
-                    Text("インデックス作成中…")
+                    val p = progress
+                    if (p == null || p.total == 0) {
+                        LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
+                        Spacer(Modifier.height(8.dp))
+                        Text("インデックス作成中…")
+                    } else {
+                        LinearProgressIndicator(
+                            progress = { p.fraction },
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                        Spacer(Modifier.height(8.dp))
+                        Text("インデックス作成中… ${p.processed} / ${p.total}")
+                    }
                 }
                 return@Column
             }
 
             // ② 作成済み → 検索UI表示 + 日付表示
             val dateStr = remember(lastIndexedAt) {
-                val fmt = SimpleDateFormat("yyyy/M/d", Locale.JAPAN)
-                lastIndexedAt?.let { "インデックス作成: ${fmt.format(Date(it))}" } ?: ""
+                lastIndexedAt?.let { millis ->
+                    java.text.SimpleDateFormat("yyyy/M/d", java.util.Locale.JAPAN).format(java.util.Date(millis))
+                } ?: ""
             }
+            Text("インデックス作成: $dateStr")
 
-            // 上部にステータス
-            Text(dateStr)
+            // 再作成中なら上部に進捗を出す
             if (indexing) {
+                val p = progress
                 Spacer(Modifier.height(6.dp))
-                LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
+                if (p == null || p.total == 0) {
+                    LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
+                } else {
+                    LinearProgressIndicator(progress = { p.fraction }, modifier = Modifier.fillMaxWidth())
+                    Spacer(Modifier.height(4.dp))
+                    Text("${p.processed} / ${p.total}")
+                }
             }
 
             Spacer(Modifier.height(12.dp))
