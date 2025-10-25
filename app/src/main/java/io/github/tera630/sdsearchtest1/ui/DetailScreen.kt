@@ -39,7 +39,9 @@ fun DetailScreen(
         Box(Modifier.padding(pad).padding(12.dp)) {
             when (val text = md) {
                 null -> CircularProgressIndicator()
-                else -> MarkdownText(markdown = text, modifier = Modifier)
+                else -> MarkdownText(
+                    markdown = text, modifier = Modifier
+                )
             }
         }
     }

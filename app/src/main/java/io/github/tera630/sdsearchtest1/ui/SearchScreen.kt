@@ -30,7 +30,10 @@ fun SearchScreen(
         topBar = {
             TopAppBar(
                 title = { Text("医療メモ検索") },
-                actions = { FolderPickerButton { uri: Uri -> vm.reindexAll(uri) } }
+                actions = { FolderPickerButton {
+                    uri: Uri -> vm.reindexAll(uri) } //FolderPickerButtonの終了時コールバックに
+                                                             //vm.reindexAllを呼び出す。(＝選んだフォルダでインデックス作成)
+                }
             )
         }
     ) { pad ->

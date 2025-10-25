@@ -24,11 +24,13 @@ class AppSearchRepository(private val context: Context) {
 
     private suspend fun ensureSession(): AppSearchSession =
         session ?: withContext(Dispatchers.IO) {
+            // 検索処理セッションを作成する。
 
             val searchContext = LocalStorage.SearchContext.Builder(context,"notes-db")
                 .build()
 
             val resolvedSession = LocalStorage.createSearchSessionAsync(searchContext).get() // with Suspend
+            // 検索対象のデータ型定義(NoteDocで定義したクラス)をApp　searchの検索処理セッションに登録する。
 
             val req = SetSchemaRequest.Builder()
                 .addDocumentClasses(NoteDoc::class.java)
@@ -36,15 +38,18 @@ class AppSearchRepository(private val context: Context) {
                 .build()
             resolvedSession.setSchemaAsync(req).get() // with Suspend
 
-            session = resolvedSession // 返り値をclass propertyにも格納
+            session = resolvedSession // 　NoteDocを登録した検索処理セッションをclass propertyと、呼び出し元に返す。
             resolvedSession
         }
 
     suspend fun indexAllFromTree(treeUri: Uri,
              onProgress:(Processed: Int, Total: Int) -> Unit ={_,_->}
     ): Int = withContext(Dispatchers.IO) {
-
+        // メインスレッド外でインデックス処理
         val s = ensureSession() // notes-db の SearchSession（Schema済）
+        // SearchScreenのフォルダ選択
+        // 呼び出し元から得たTreeUriからフォルダのルートを得る。
+        //
         val root = DocumentFile.fromTreeUri(context, treeUri) ?: return@withContext 0
     //  まず 下位ディレクトリも含め.md を全部集めて総数を出す（1パス）
 
@@ -61,24 +66,29 @@ class AppSearchRepository(private val context: Context) {
         onProgress(0,total)
 
         // 2Pass Making Index
-        val progressed = 0;
+        var processed = 0;
         val notes = mutableListOf<NoteDoc>()   // ← NoteDoc を貯める
 
         for (f in mdFiles) {
             context.contentResolver.openInputStream(f.uri)?.use { ins ->
+                // ファイルからNoteDocの形式でDocumentFile構造を作成
                 val text = ins.bufferedReader(Charsets.UTF_8).readText()
                 val title = f.name?.removeSuffix(".md") ?: "untitled"
                 val id = stableId(f.uri.toString())
                 val updatedAt = (f.lastModified()).takeIf { it > 0 } ?: System.currentTimeMillis()
+                val tags = parseTagsFromText(text)
 
                 notes += NoteDoc(
                     id = id,
                     path = f.uri.toString(),
-                    title = title,
+                    title = nfkc(title),
                     content = text,
+                    tags = tags,
                     updatedAt = updatedAt
                 )
             }
+            processed++
+            onProgress(processed,total)
         }
 
         // 空なら早期リターン（走査ミスの検知に役立つ）
@@ -97,7 +107,14 @@ class AppSearchRepository(private val context: Context) {
         }
         notes.size
     }
-
+    suspend fun clearAll() = withContext(Dispatchers.IO) {
+        val session = ensureSession()
+        val searchSpec = SearchSpec.Builder()
+            .addFilterNamespaces("notes") // "notes" 名前空間を指定
+            .build()
+        // 空のクエリと名前空間フィルタで、該当するすべてのドキュメントを削除
+        session.removeAsync("", searchSpec).get()
+    }
     suspend fun getMarkdownByPath(path: String): String = withContext(Dispatchers.IO) {
         val uri = path.toUri()
         context.contentResolver.openInputStream(uri)?.use { ins ->
@@ -106,9 +123,9 @@ class AppSearchRepository(private val context: Context) {
     }
     suspend fun search(query: String, limit: Int = 100): List<SearchHit> = withContext(Dispatchers.IO) {
         val s = ensureSession()
-
-        // 前処理（NFKC 正規化 + 前後空白除去）
-        val q = Normalizer.normalize(query.trim(), Normalizer.Form.NFKC)
+        val tokens = nfkc(query)
+            .split(Regex("\\s+"))
+            .filter { it.isNotBlank() }
 
         val spec = SearchSpec.Builder()
             .addFilterNamespaces("notes")
@@ -120,26 +137,36 @@ class AppSearchRepository(private val context: Context) {
             .setResultCountPerPage(limit)
             .build()
 
-        val results = s.search(q, spec)
-        val page = results.nextPageAsync.get()
+        val results = s.search(tokens.joinToString(""), spec)
+        val page = results.nextPageAsync.get() // 結果待ち。
 
-        page.map { r ->
+        data class Row(val hit: SearchHit, val tagScore: Int)
+
+        val rows = page.map { r ->
             val doc = r.genericDocument
             val path = doc.getPropertyString("path")!!
-            val title = doc.getPropertyString("title")!!
-            val snippetObj = doc.getProperty("snippet")// 1.1.0系で取得方法が変わる場合あり
-            // content のスニペット抽出（安全策：自前でも一行スニペットを作る）
+            val title = doc.getPropertyString("title") ?: "untitled"
             val content = doc.getPropertyString("content") ?: ""
-            val hitLine =
-                content.lineSequence().firstOrNull { it.contains(query) } ?: content.take(120)
+            val tags = doc.getPropertyStringArray("tags")?.toList().orEmpty()
 
-            SearchHit(
-                id = doc.id,
-                path = path,
-                title = title,
-                snippet = hitLine
+            val snippet = content.lineSequence().firstOrNull { line ->
+                tokens.all { token -> line.contains(token) }
+            } ?: content.take(120)
+
+            // ★ タグ一致数（前方一致）でスコア
+            val tagScore = if (tokens.isEmpty()) 0 else
+                tokens.count { t -> tags.any { tag -> tag.startsWith(t) } }
+
+            Row(
+                hit = SearchHit(id = doc.id, path = path, title = title, snippet = snippet),
+                tagScore = tagScore
             )
         }
+
+        // ★ タグスコアが高いものを先頭に。スコア同点はタイトル昇順等で安定化
+        rows.sortedWith(compareByDescending<Row> { it.tagScore }
+            .thenBy { it.hit.title })
+            .map { it.hit }
     }
     private fun stableId(path: String): String =
         UUID.nameUUIDFromBytes(path.toByteArray()).toString()

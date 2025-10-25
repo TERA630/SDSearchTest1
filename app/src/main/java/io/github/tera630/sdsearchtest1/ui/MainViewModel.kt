@@ -31,11 +31,17 @@ class MainViewModel(
             _isIndexing.value = true
             _progress.value = IndexProgress(total = 0, processed = 0)
             runCatching {
+                repo.clearAll()                                             //以前のインデックスをクリア
                 repo.indexAllFromTree(treeUri) { processed, total ->
                     _progress.value = IndexProgress(total, processed)
                 }
             }.onSuccess {
+                // 成功した場合のみ最終更新日時を保存
                 store.setLastIndexedAt(System.currentTimeMillis())
+            }.onFailure{
+                // エラーが発生した場合の処理（例: ログ出力）
+                // 必要に応じてここにエラーハンドリングを追加してください
+                android.util.Log.e("MainViewModel", "Re-indexing failed")
             }
             _isIndexing.value = false
             _progress.value = null
