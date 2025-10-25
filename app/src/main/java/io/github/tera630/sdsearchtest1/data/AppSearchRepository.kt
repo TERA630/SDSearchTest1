@@ -4,6 +4,8 @@ import android.content.Context
 import android.net.Uri
 import android.util.Log
 import androidx.appsearch.app.AppSearchSession
+import androidx.appsearch.app.Features
+import androidx.appsearch.app.PropertyPath
 import androidx.appsearch.app.PutDocumentsRequest
 import androidx.appsearch.app.SearchSpec
 import androidx.appsearch.app.SetSchemaRequest
@@ -127,7 +129,8 @@ class AppSearchRepository(private val context: Context) {
             .split(Regex("\\s+"))
             .filter { it.isNotBlank() }
 
-        val spec = SearchSpec.Builder()
+        //　検索セッションの条件
+        val specBuilder = SearchSpec.Builder()
             .addFilterNamespaces("notes")
             .setTermMatch(SearchSpec.TERM_MATCH_PREFIX) // 前方一致
             .setSnippetCount(1) // 各ドキュメント1スニペット
@@ -135,10 +138,26 @@ class AppSearchRepository(private val context: Context) {
             .setSnippetCountPerProperty(1)
             .setRankingStrategy(SearchSpec.RANKING_STRATEGY_RELEVANCE_SCORE)
             .setResultCountPerPage(limit)
-            .build()
 
+        // property weight のサポートがあればtagsを強く。
+
+        val features: Features = s.features
+        if (features.isFeatureSupported(Features.SEARCH_SPEC_PROPERTY_WEIGHTS)) {
+            specBuilder.setPropertyWeightPaths(
+                // スキーマ名 "NoteDoc" を指定
+                "NoteDoc",
+                // mapOf を使ってプロパティの重みを設定
+                mapOf(
+                    // PropertyPath.create("tags") ではなく、コンストラクタを直接呼び出す
+                    PropertyPath("tags") to 5.0,     // "tags" プロパティの重みを5.0に
+                    PropertyPath("title") to 2.0,    // "title" プロパティの重みを2.0に
+                    PropertyPath("content") to 1.0   // "content" プロパティの重みを1.0に
+                )
+            )
+        }
+        val spec = specBuilder.build()
         val results = s.search(tokens.joinToString(""), spec)
-        val page = results.nextPageAsync.get() // 結果待ち。
+        val page = results.nextPageAsync.get() // Suspend
 
         data class Row(val hit: SearchHit, val tagScore: Int)
 
