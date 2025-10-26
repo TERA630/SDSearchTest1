@@ -1,5 +1,6 @@
 package io.github.tera630.sdsearchtest1.data
 
+import android.annotation.SuppressLint
 import android.content.Context
 import android.net.Uri
 import android.util.Log
@@ -19,12 +20,15 @@ import java.text.Normalizer
 import java.util.UUID
 import io.github.tera630.sdsearchtest1.data.NoteDoc
 import androidx.core.net.toUri
+import androidx.appsearch.app.GetByDocumentIdRequest
+import androidx.appsearch.app.GenericDocument
+
 
 class AppSearchRepository(private val context: Context) {
 
     private var session: AppSearchSession? = null
 
-    private suspend fun ensureSession(): AppSearchSession =
+    suspend fun ensureSession(): AppSearchSession =
         session ?: withContext(Dispatchers.IO) {
             // 検索処理セッションを作成する。
 
@@ -109,7 +113,7 @@ class AppSearchRepository(private val context: Context) {
         }
         notes.size
     }
-    suspend fun clearAll() = withContext(Dispatchers.IO) {
+    suspend fun clearAll(): Void? = withContext(Dispatchers.IO) {
         val session = ensureSession()
         val searchSpec = SearchSpec.Builder()
             .addFilterNamespaces("notes") // "notes" 名前空間を指定
@@ -123,6 +127,7 @@ class AppSearchRepository(private val context: Context) {
             BufferedReader(InputStreamReader(ins, Charsets.UTF_8)).readText()
         } ?: ""
     }
+    @SuppressLint("RequiresFeature")
     suspend fun search(query: String, limit: Int = 100): List<SearchHit> = withContext(Dispatchers.IO) {
         val s = ensureSession()
         val tokens = nfkc(query)
@@ -142,7 +147,10 @@ class AppSearchRepository(private val context: Context) {
         // property weight のサポートがあればtagsを強く。
 
         val features: Features = s.features
-        if (features.isFeatureSupported(Features.SEARCH_SPEC_PROPERTY_WEIGHTS)) {
+        val isWeightSupported =  features.isFeatureSupported(Features.SEARCH_SPEC_PROPERTY_WEIGHTS)
+        Log.d("AppSearch","weightSupported={$isWeightSupported}")
+
+        if (isWeightSupported) {
             specBuilder.setPropertyWeightPaths(
                 // スキーマ名 "NoteDoc" を指定
                 "NoteDoc",
@@ -167,14 +175,16 @@ class AppSearchRepository(private val context: Context) {
             val title = doc.getPropertyString("title") ?: "untitled"
             val content = doc.getPropertyString("content") ?: ""
             val tags = doc.getPropertyStringArray("tags")?.toList().orEmpty()
-
             val snippet = content.lineSequence().firstOrNull { line ->
                 tokens.all { token -> line.contains(token) }
             } ?: content.take(120)
 
-            // ★ タグ一致数（前方一致）でスコア
+            // ★ タグ一致数（前方一致）でスコア (PropertyWeightが効かないとき)
+
             val tagScore = if (tokens.isEmpty()) 0 else
                 tokens.count { t -> tags.any { tag -> tag.startsWith(t) } }
+
+
 
             Row(
                 hit = SearchHit(id = doc.id, path = path, title = title, snippet = snippet),
@@ -189,7 +199,26 @@ class AppSearchRepository(private val context: Context) {
     }
     private fun stableId(path: String): String =
         UUID.nameUUIDFromBytes(path.toByteArray()).toString()
+    
+    suspend fun getNoteById(id: String): NoteDoc? = withContext(Dispatchers.IO) {
+        val s = ensureSession()
+        val req = GetByDocumentIdRequest.Builder("notes")
+            .addIds(id)
+            .build()
+        val res = s.getByDocumentIdAsync(req).get() // Suspend
+        
+    // GenericDocument → NoteDoc に変換
+        val gd = res.successes[id]
+        gd?.toDocumentClass(NoteDoc::class.java)
+    }
+
 }
+
+
+
+
+
+
 
 data class SearchHit(
     val id: String,

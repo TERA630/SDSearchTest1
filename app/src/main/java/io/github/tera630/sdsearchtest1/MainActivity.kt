@@ -35,16 +35,17 @@ class MainActivity : ComponentActivity() {
 
             NavHost(navController = nav, startDestination = "search") {
                 composable("search") {
-                    SearchScreen(vm = vm, onOpen = { path ->
-                        nav.navigate("detail?path=${Uri.encode(path)}")
+                    SearchScreen(vm = vm, onOpen = { id ->
+                        nav.navigate("detail?id=${Uri.encode(id)}")
                     })
                 }
                 composable(
-                    route = "detail?path={path}",
-                    arguments = listOf(navArgument("path") { type = NavType.StringType; defaultValue = "" })
+                    route = "detail?id={id}",
+                    arguments = listOf(navArgument("id") { type = NavType.StringType; defaultValue = "" })
                 ) { backStackEntry ->
-                    val path = backStackEntry.arguments?.getString("path").orEmpty()
-                    DetailScreen(path = path, repo = repo) { nav.popBackStack() }
+                    val id = backStackEntry.arguments?.getString("id").orEmpty()
+                    DetailScreen(id = id, repo = repo)
+                    { nav.popBackStack() }
                 }
             }
         }

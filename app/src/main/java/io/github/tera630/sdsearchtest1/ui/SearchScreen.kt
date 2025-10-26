@@ -103,6 +103,7 @@ fun SearchScreen(
     }
 }
 
+// 検索結果(SearchHit)よりリストを作る。　リストアイテムクリック時はコールバック。
 @Composable
 private fun ResultList(hits: List<SearchHit>, onOpen: (String) -> Unit) {
     LazyColumn(Modifier.fillMaxSize()) {
@@ -117,7 +118,7 @@ private fun ResultList(hits: List<SearchHit>, onOpen: (String) -> Unit) {
                     .padding(vertical = 4.dp)
                     .clickable( enabled = true,
                         onClick = {
-                            onOpen(h.path)
+                            onOpen(h.id)
                         }
                     )
             )
