@@ -16,12 +16,9 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.io.BufferedReader
 import java.io.InputStreamReader
-import java.text.Normalizer
 import java.util.UUID
-import io.github.tera630.sdsearchtest1.data.NoteDoc
 import androidx.core.net.toUri
 import androidx.appsearch.app.GetByDocumentIdRequest
-import androidx.appsearch.app.GenericDocument
 import kotlin.text.split
 
 
@@ -50,7 +47,7 @@ class AppSearchRepository(private val context: Context) {
         }
 
     suspend fun indexAllFromTree(treeUri: Uri,
-             onProgress:(Processed: Int, Total: Int) -> Unit ={_,_->}
+             onProgress:(processed: Int, total: Int) -> Unit ={ _, _->}
     ): Int = withContext(Dispatchers.IO) {
         // メインスレッド外でインデックス処理
         val s = ensureSession() // notes-db の SearchSession（Schema済）
@@ -73,7 +70,7 @@ class AppSearchRepository(private val context: Context) {
         onProgress(0,total)
 
         // 2Pass Making Index
-        var processed = 0;
+        var processed = 0
         val notes = mutableListOf<NoteDoc>()   // ← NoteDoc を貯める
 
         for (f in mdFiles) {
@@ -179,7 +176,7 @@ class AppSearchRepository(private val context: Context) {
                 tokens.all { token -> line.contains(token, ignoreCase = true) }
             } ?: content.take(120)
 
-            // isWeightSupportedがfalseの場合の並べ替えに使うtagScoreを計算
+            // tagScoreをtokenの中にtagと一致する数から計算
             val tagScore = if (tokens.isEmpty()) 0 else {
                 tokens.count { t -> tags.any { tag -> tag.startsWith(t, ignoreCase = true) } }
             }
@@ -218,13 +215,6 @@ class AppSearchRepository(private val context: Context) {
     }
 
 }
-
-
-
-
-
-
-
 data class SearchHit(
     val id: String,
     val path: String,
