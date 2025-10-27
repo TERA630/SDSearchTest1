@@ -22,6 +22,7 @@ import io.github.tera630.sdsearchtest1.data.NoteDoc
 import androidx.core.net.toUri
 import androidx.appsearch.app.GetByDocumentIdRequest
 import androidx.appsearch.app.GenericDocument
+import kotlin.text.split
 
 
 class AppSearchRepository(private val context: Context) {
@@ -145,30 +146,29 @@ class AppSearchRepository(private val context: Context) {
             .setResultCountPerPage(limit)
 
         // property weight のサポートがあればtagsを強く。
-
         val features: Features = s.features
-        val isWeightSupported =  features.isFeatureSupported(Features.SEARCH_SPEC_PROPERTY_WEIGHTS)
-        Log.d("AppSearch","weightSupported={$isWeightSupported}")
+        val isWeightSupported = features.isFeatureSupported(Features.SEARCH_SPEC_PROPERTY_WEIGHTS)
+        Log.d("AppSearch", "weightSupported={$isWeightSupported}")
 
         if (isWeightSupported) {
             specBuilder.setPropertyWeightPaths(
-                // スキーマ名 "NoteDoc" を指定
                 "NoteDoc",
-                // mapOf を使ってプロパティの重みを設定
                 mapOf(
-                    // PropertyPath.create("tags") ではなく、コンストラクタを直接呼び出す
-                    PropertyPath("tags") to 5.0,     // "tags" プロパティの重みを5.0に
-                    PropertyPath("title") to 2.0,    // "title" プロパティの重みを2.0に
-                    PropertyPath("content") to 1.0   // "content" プロパティの重みを1.0に
+                    PropertyPath("tags") to 5.0,
+                    PropertyPath("title") to 2.0,
+                    PropertyPath("content") to 1.0
                 )
             )
         }
-        val spec = specBuilder.build()
-        val results = s.search(tokens.joinToString(""), spec)
-        val page = results.nextPageAsync.get() // Suspend
 
+        val spec = specBuilder.build()
+        val results = s.search(tokens.joinToString(" "), spec)
+        val page = results.nextPageAsync.get()
+
+        // 検索結果とtagScoreを保持する中間データクラス
         data class Row(val hit: SearchHit, val tagScore: Int)
 
+        // AppSearch の結果を SearchHit と tagScore を含む Row に変換
         val rows = page.map { r ->
             val doc = r.genericDocument
             val path = doc.getPropertyString("path")!!
@@ -176,26 +176,31 @@ class AppSearchRepository(private val context: Context) {
             val content = doc.getPropertyString("content") ?: ""
             val tags = doc.getPropertyStringArray("tags")?.toList().orEmpty()
             val snippet = content.lineSequence().firstOrNull { line ->
-                tokens.all { token -> line.contains(token) }
+                tokens.all { token -> line.contains(token, ignoreCase = true) }
             } ?: content.take(120)
 
-            // ★ タグ一致数（前方一致）でスコア (PropertyWeightが効かないとき)
-
-            val tagScore = if (tokens.isEmpty()) 0 else
-                tokens.count { t -> tags.any { tag -> tag.startsWith(t) } }
-
-
-
+            // isWeightSupportedがfalseの場合の並べ替えに使うtagScoreを計算
+            val tagScore = if (tokens.isEmpty()) 0 else {
+                tokens.count { t -> tags.any { tag -> tag.startsWith(t, ignoreCase = true) } }
+            }
             Row(
                 hit = SearchHit(id = doc.id, path = path, title = title, snippet = snippet),
                 tagScore = tagScore
             )
         }
 
-        // ★ タグスコアが高いものを先頭に。スコア同点はタイトル昇順等で安定化
-        rows.sortedWith(compareByDescending<Row> { it.tagScore }
-            .thenBy { it.hit.title })
-            .map { it.hit }
+        // isWeightSupportedがfalseの場合のみ、tagScoreでソート
+        val sortedRows = if (!isWeightSupported) {
+            rows.sortedWith(
+                compareByDescending<Row> { it.tagScore }
+                    .thenBy { it.hit.title } // スコアが同じ場合はタイトルで安定ソート
+            )
+        } else {
+            rows // AppSearchの順序を維持
+        }
+
+        // 最終的に List<SearchHit> を返す
+        sortedRows.map { it.hit }
     }
     private fun stableId(path: String): String =
         UUID.nameUUIDFromBytes(path.toByteArray()).toString()
