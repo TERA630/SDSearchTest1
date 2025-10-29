@@ -16,12 +16,9 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.io.BufferedReader
 import java.io.InputStreamReader
-import java.text.Normalizer
 import java.util.UUID
-import io.github.tera630.sdsearchtest1.data.NoteDoc
 import androidx.core.net.toUri
 import androidx.appsearch.app.GetByDocumentIdRequest
-import androidx.appsearch.app.GenericDocument
 import kotlin.text.split
 
 
@@ -45,18 +42,16 @@ class AppSearchRepository(private val context: Context) {
                 .build()
             resolvedSession.setSchemaAsync(req).get() // with Suspend
 
-            session = resolvedSession // 　NoteDocを登録した検索処理セッションをclass propertyと、呼び出し元に返す。
+            session = resolvedSession
             resolvedSession
-        }
+        } // 　NoteDocを登録した検索処理セッションをclass propertyと、呼び出し元に返す。
 
     suspend fun indexAllFromTree(treeUri: Uri,
-             onProgress:(Processed: Int, Total: Int) -> Unit ={_,_->}
+             onProgress:(processed: Int, total: Int) -> Unit ={ _, _->}
     ): Int = withContext(Dispatchers.IO) {
         // メインスレッド外でインデックス処理
         val s = ensureSession() // notes-db の SearchSession（Schema済）
-        // SearchScreenのフォルダ選択
-        // 呼び出し元から得たTreeUriからフォルダのルートを得る。
-        //
+        // 呼び出し元(ここではSearchScreenでユーザーが選択)で得たTreeUriからフォルダのルートを得る(なければ早期リターン)
         val root = DocumentFile.fromTreeUri(context, treeUri) ?: return@withContext 0
     //  まず 下位ディレクトリも含め.md を全部集めて総数を出す（1パス）
 
@@ -66,19 +61,19 @@ class AppSearchRepository(private val context: Context) {
                 else if (f.isFile && f.name?.endsWith(".md", ignoreCase = true) == true) out += f
             }
         }
-
+        //
         val mdFiles = mutableListOf<DocumentFile>().also{ collect(root, it) }
         val total = mdFiles.size
         Log.d("list files","root.listFiles().size=${total}")
         onProgress(0,total)
 
         // 2Pass Making Index
-        var processed = 0;
-        val notes = mutableListOf<NoteDoc>()   // ← NoteDoc を貯める
+        var processed = 0
+        val notes = mutableListOf<NoteDoc>()   // ← NoteDoc を貯めるリスト
 
         for (f in mdFiles) {
             context.contentResolver.openInputStream(f.uri)?.use { ins ->
-                // ファイルからNoteDocの形式でDocumentFile構造を作成
+                // URI上のファイルからNoteDocの形式でDocumentFile構造を作成
                 val text = ins.bufferedReader(Charsets.UTF_8).readText()
                 val title = f.name?.removeSuffix(".md") ?: "untitled"
                 val id = stableId(f.uri.toString())
@@ -179,7 +174,7 @@ class AppSearchRepository(private val context: Context) {
                 tokens.all { token -> line.contains(token, ignoreCase = true) }
             } ?: content.take(120)
 
-            // isWeightSupportedがfalseの場合の並べ替えに使うtagScoreを計算
+            // tagScoreをtokenの中にtagと一致する数から計算
             val tagScore = if (tokens.isEmpty()) 0 else {
                 tokens.count { t -> tags.any { tag -> tag.startsWith(t, ignoreCase = true) } }
             }
@@ -218,13 +213,6 @@ class AppSearchRepository(private val context: Context) {
     }
 
 }
-
-
-
-
-
-
-
 data class SearchHit(
     val id: String,
     val path: String,

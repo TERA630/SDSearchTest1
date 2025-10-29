@@ -9,6 +9,8 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import dev.jeziellago.compose.markdowntext.MarkdownText
@@ -33,17 +35,23 @@ fun DetailScreen(
             .onFailure { state = UiState.Error(it) }
     }
 
+    // stateがUiState.Readyの場合にタイトルを取得し、それ以外はデフォルトのテキストにする
+    val topBarTitle = when (val s = state) {
+        is UiState.Ready -> s.note.title
+        else -> "本文"
+    }
+
     Scaffold(
-        topBar = { TopAppBar(title = { Text("本文") }, navigationIcon = { BackButton(onBack) }) }
+        topBar = { TopAppBar(title = { Text(topBarTitle) }, navigationIcon = { BackButton(onBack) }) }
     ) { pad ->
         when (val s = state) {
             UiState.Loading -> Box(Modifier.padding(pad).fillMaxSize()) { CircularProgressIndicator() }
             UiState.NotFound -> Text("本文が見つかりませんでした。", Modifier.padding(pad).padding(16.dp))
             is UiState.Error -> Text("読み込みに失敗しました: ${s.err.message}", Modifier.padding(pad).padding(16.dp))
             is UiState.Ready -> {
-                // s.note.content をお好みの Markdown コンポーザで表示
-                // 例: compose-markdown を利用
+
                 LazyColumn(Modifier.padding(pad)) {
+                    // 本文内のタイトル表示は不要であれば削除しても良い
                     item { Text(s.note.title, style = MaterialTheme.typography.titleLarge, modifier = Modifier.padding(16.dp)) }
                     item {
                         MarkdownText(
