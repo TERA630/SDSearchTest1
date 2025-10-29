@@ -42,18 +42,16 @@ class AppSearchRepository(private val context: Context) {
                 .build()
             resolvedSession.setSchemaAsync(req).get() // with Suspend
 
-            session = resolvedSession // 　NoteDocを登録した検索処理セッションをclass propertyと、呼び出し元に返す。
+            session = resolvedSession
             resolvedSession
-        }
+        } // 　NoteDocを登録した検索処理セッションをclass propertyと、呼び出し元に返す。
 
     suspend fun indexAllFromTree(treeUri: Uri,
              onProgress:(processed: Int, total: Int) -> Unit ={ _, _->}
     ): Int = withContext(Dispatchers.IO) {
         // メインスレッド外でインデックス処理
         val s = ensureSession() // notes-db の SearchSession（Schema済）
-        // SearchScreenのフォルダ選択
-        // 呼び出し元から得たTreeUriからフォルダのルートを得る。
-        //
+        // 呼び出し元(ここではSearchScreenでユーザーが選択)で得たTreeUriからフォルダのルートを得る(なければ早期リターン)
         val root = DocumentFile.fromTreeUri(context, treeUri) ?: return@withContext 0
     //  まず 下位ディレクトリも含め.md を全部集めて総数を出す（1パス）
 
@@ -63,7 +61,7 @@ class AppSearchRepository(private val context: Context) {
                 else if (f.isFile && f.name?.endsWith(".md", ignoreCase = true) == true) out += f
             }
         }
-
+        //
         val mdFiles = mutableListOf<DocumentFile>().also{ collect(root, it) }
         val total = mdFiles.size
         Log.d("list files","root.listFiles().size=${total}")
@@ -71,11 +69,11 @@ class AppSearchRepository(private val context: Context) {
 
         // 2Pass Making Index
         var processed = 0
-        val notes = mutableListOf<NoteDoc>()   // ← NoteDoc を貯める
+        val notes = mutableListOf<NoteDoc>()   // ← NoteDoc を貯めるリスト
 
         for (f in mdFiles) {
             context.contentResolver.openInputStream(f.uri)?.use { ins ->
-                // ファイルからNoteDocの形式でDocumentFile構造を作成
+                // URI上のファイルからNoteDocの形式でDocumentFile構造を作成
                 val text = ins.bufferedReader(Charsets.UTF_8).readText()
                 val title = f.name?.removeSuffix(".md") ?: "untitled"
                 val id = stableId(f.uri.toString())

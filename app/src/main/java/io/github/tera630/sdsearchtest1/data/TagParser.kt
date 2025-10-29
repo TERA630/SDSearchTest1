@@ -3,12 +3,10 @@ import java.text.Normalizer
 
 private val tagLineRegex = Regex("""^\s*(tag|tags|Tag|Tags|TAG|TAGs|タグ)\s*:\s*(.+)$""")
 
-
 /**
  * 例:
  * Tag: 虫垂炎 診断 治療
  * Tag: 便秘, 大腸内視鏡 / 鎮静
- * タグ: GERD　PPI　逆流性食道炎
  */
 
 fun parseTagsFromText(text: String): List<String> {
