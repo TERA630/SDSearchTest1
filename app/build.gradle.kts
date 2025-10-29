@@ -64,6 +64,8 @@ dependencies {
     // Coroutines
     implementation(libs.coroutines.android)
 
+    implementation(libs.androidx.compose.material.icons.extended.android)
+
     // AppSearch（Local + Platform）とコンパイラ
     implementation(libs.appsearch.core)
     implementation(libs.appsearch.local.storage)
