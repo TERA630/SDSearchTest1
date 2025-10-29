@@ -28,14 +28,14 @@ class AppSearchRepository(private val context: Context) {
 
     suspend fun ensureSession(): AppSearchSession =
         session ?: withContext(Dispatchers.IO) {
-            // 検索処理セッションを作成する。
-
+            //　このアプリの検索機能用データベース作成
             val searchContext = LocalStorage.SearchContext.Builder(context,"notes-db")
                 .build()
 
+            //　そのデータベースに接続するためのセッション(窓口)作成
             val resolvedSession = LocalStorage.createSearchSessionAsync(searchContext).get() // with Suspend
-            // 検索対象のデータ型定義(NoteDocで定義したクラス)をApp　searchの検索処理セッションに登録する。
 
+            // データー構造を　NoteDoc.classで規定。
             val req = SetSchemaRequest.Builder()
                 .addDocumentClasses(NoteDoc::class.java)
                 .setForceOverride(true)
@@ -74,18 +74,18 @@ class AppSearchRepository(private val context: Context) {
         for (f in mdFiles) {
             context.contentResolver.openInputStream(f.uri)?.use { ins ->
                 // URI上のファイルからNoteDocの形式でDocumentFile構造を作成
-                val text = ins.bufferedReader(Charsets.UTF_8).readText()
+                val rawText = ins.bufferedReader(Charsets.UTF_8).readText()
                 val title = f.name?.removeSuffix(".md") ?: "untitled"
                 val id = stableId(f.uri.toString())
                 val updatedAt = (f.lastModified()).takeIf { it > 0 } ?: System.currentTimeMillis()
-                val tags = parseTagsFromText(text)
+                val parsed = parseTagsAndStrip(rawText)  // (tags, contentWithoutTagline)
 
                 notes += NoteDoc(
                     id = id,
                     path = f.uri.toString(),
                     title = nfkc(title),
-                    content = text,
-                    tags = tags,
+                    content = parsed.contentWithoutTagLines,
+                    tags = parsed.tags,
                     updatedAt = updatedAt
                 )
             }

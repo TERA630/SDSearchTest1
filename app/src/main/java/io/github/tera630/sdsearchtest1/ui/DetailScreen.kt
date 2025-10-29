@@ -1,6 +1,7 @@
 package io.github.tera630.sdsearchtest1.ui
 
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
@@ -12,6 +13,7 @@ import androidx.compose.runtime.*
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import dev.jeziellago.compose.markdowntext.MarkdownText
 import io.github.tera630.sdsearchtest1.data.AppSearchRepository
@@ -45,9 +47,15 @@ fun DetailScreen(
         topBar = { TopAppBar(title = { Text(topBarTitle) }, navigationIcon = { BackButton(onBack) }) }
     ) { pad ->
         when (val s = state) {
-            UiState.Loading -> Box(Modifier.padding(pad).fillMaxSize()) { CircularProgressIndicator() }
-            UiState.NotFound -> Text("本文が見つかりませんでした。", Modifier.padding(pad).padding(16.dp))
-            is UiState.Error -> Text("読み込みに失敗しました: ${s.err.message}", Modifier.padding(pad).padding(16.dp))
+            UiState.Loading -> Box(Modifier
+                .padding(pad)
+                .fillMaxSize()) { CircularProgressIndicator() }
+            UiState.NotFound -> Text("本文が見つかりませんでした。", Modifier
+                .padding(pad)
+                .padding(16.dp))
+            is UiState.Error -> Text("読み込みに失敗しました: ${s.err.message}", Modifier
+                .padding(pad)
+                .padding(16.dp))
             is UiState.Ready -> {
 
                 LazyColumn(Modifier.padding(pad)) {
@@ -56,7 +64,9 @@ fun DetailScreen(
                     item {
                         MarkdownText(
                             markdown = s.note.content,   // ← インデックスに保存した本文を表示
-                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
+                            modifier = Modifier
+                                .padding(horizontal = 16.dp, vertical = 8.dp)
+                                .background(Color(0xFFFAF0E6))
                         )
                     }
                 }
