@@ -24,6 +24,8 @@ import kotlin.text.split
 
 class AppSearchRepository(private val context: Context) {
 
+    private val linkTargetInsideParens = Regex("""(?<=]\()(.+?)(?=\))""")
+    // ］と（の連続があった直後の部位でかつ、)が直後にある　文字列に最短マッチ＝　[リンクテキスト（注釈1）](リンク先(注釈2))
     private var session: AppSearchSession? = null
 
     suspend fun ensureSession(): AppSearchSession =
@@ -44,12 +46,11 @@ class AppSearchRepository(private val context: Context) {
 
             session = resolvedSession
             resolvedSession
-        } // 　NoteDocを登録した検索処理セッションをclass propertyと、呼び出し元に返す。
+        } // 　NoteDocを登録した検索処理セッションを初回は作成し、class propertyと、呼び出し元に返す。
 
     suspend fun indexAllFromTree(treeUri: Uri,
              onProgress:(processed: Int, total: Int) -> Unit ={ _, _->}
     ): Int = withContext(Dispatchers.IO) {
-        // メインスレッド外でインデックス処理
         val s = ensureSession() // notes-db の SearchSession（Schema済）
         // 呼び出し元(ここではSearchScreenでユーザーが選択)で得たTreeUriからフォルダのルートを得る(なければ早期リターン)
         val root = DocumentFile.fromTreeUri(context, treeUri) ?: return@withContext 0
@@ -60,7 +61,7 @@ class AppSearchRepository(private val context: Context) {
                 if (f.isDirectory) collect(f, out)
                 else if (f.isFile && f.name?.endsWith(".md", ignoreCase = true) == true) out += f
             }
-        }
+        } // 下位フォルダを探すための関数
         //
         val mdFiles = mutableListOf<DocumentFile>().also{ collect(root, it) }
         val total = mdFiles.size
@@ -74,17 +75,18 @@ class AppSearchRepository(private val context: Context) {
         for (f in mdFiles) {
             context.contentResolver.openInputStream(f.uri)?.use { ins ->
                 // URI上のファイルからNoteDocの形式でDocumentFile構造を作成
-                val text = ins.bufferedReader(Charsets.UTF_8).readText()
+                val rawText = ins.bufferedReader(Charsets.UTF_8).readText()
                 val title = f.name?.removeSuffix(".md") ?: "untitled"
                 val id = stableId(f.uri.toString())
                 val updatedAt = (f.lastModified()).takeIf { it > 0 } ?: System.currentTimeMillis()
-                val tags = parseTagsFromText(text)
+                val tags = parseTagsFromText(rawText)
+                val parsedText = parseInternalLinks(rawText)
 
                 notes += NoteDoc(
                     id = id,
                     path = f.uri.toString(),
                     title = nfkc(title),
-                    content = text,
+                    content = parsedText,
                     tags = tags,
                     updatedAt = updatedAt
                 )
@@ -212,6 +214,21 @@ class AppSearchRepository(private val context: Context) {
         gd?.toDocumentClass(NoteDoc::class.java)
     }
 
+    fun parseInternalLinks(raw: String): String {
+        return linkTargetInsideParens.replace(raw){ m ->
+            val target = m.value.trim()
+            val keepAsis = target.contains("://") ||
+                    target.startsWith("mailto:",ignoreCase = true) ||
+                    target.startsWith("#") ||
+                    target.startsWith("doc:",ignoreCase = true) ||
+                    target.startsWith("docid:", ignoreCase = true)
+            if (keepAsis) { target }
+            else {
+                Log.i("AppSearchRepository","target=$target was parsed as internal links")
+                "doc:" + Uri.encode(target)}
+        }
+
+    }
 }
 data class SearchHit(
     val id: String,

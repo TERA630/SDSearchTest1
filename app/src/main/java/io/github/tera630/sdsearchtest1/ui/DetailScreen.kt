@@ -1,6 +1,7 @@
 package io.github.tera630.sdsearchtest1.ui
 
-
+import android.net.Uri
+import android.util.Log
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
@@ -16,6 +17,7 @@ import androidx.compose.ui.unit.dp
 import dev.jeziellago.compose.markdowntext.MarkdownText
 import io.github.tera630.sdsearchtest1.data.AppSearchRepository
 import io.github.tera630.sdsearchtest1.data.NoteDoc
+import kotlin.math.log
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -27,15 +29,14 @@ fun DetailScreen(
     var state by remember { mutableStateOf<UiState>(UiState.Loading) }
 
     LaunchedEffect(id) {
-        state = UiState.Loading
+        state = UiState.Loading // 初回実行時やIdが変更されたときにここが実行される。
         runCatching { repo.getNoteById(id) }
             .onSuccess { note ->
                 state = if (note != null) UiState.Ready(note) else UiState.NotFound
             }
             .onFailure { state = UiState.Error(it) }
     }
-
-    // stateがUiState.Readyの場合にタイトルを取得し、それ以外はデフォルトのテキストにする
+    // stateがUiState.Readyの場合にタイトルを取得し、それ以外は(Error)デフォルトのテキストにする
     val topBarTitle = when (val s = state) {
         is UiState.Ready -> s.note.title
         else -> "本文"
@@ -56,7 +57,17 @@ fun DetailScreen(
                     item {
                         MarkdownText(
                             markdown = s.note.content,   // ← インデックスに保存した本文を表示
-                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
+                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+                            onLinkClicked = { href ->
+                                when{
+                                    href.startsWith("doc:") ->{
+                                        val title = Uri.decode(href.removePrefix("doc:")).trim()
+                                        Log.d("onLinkClicked","onLinkClicked: $title")
+                                    }
+
+                                }
+                            }
+
                         )
                     }
                 }
