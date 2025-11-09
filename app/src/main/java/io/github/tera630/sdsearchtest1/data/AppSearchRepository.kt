@@ -23,15 +23,12 @@ class AppSearchRepository(private val context: Context) : NoteIndex {
     private val linkTargetInsideParens = Regex("""(?<=]\()(.+?)(?=\))""")
     // ］と（の連続があった直後の部位でかつ、)が直後にある　文字列に最短マッチ＝　[リンクテキスト（注釈1）](リンク先(注釈2))
     private val wikilink = Regex("""\[([^\[]+)]]""")
-
     private var session: AppSearchSession? = null
     suspend fun ensureSession(): AppSearchSession =
         session ?: withContext(Dispatchers.IO) {
             // 検索処理セッションを作成する。
-
             val searchContext = LocalStorage.SearchContext.Builder(context, "notes-db")
                 .build()
-
             val resolvedSession =
                 LocalStorage.createSearchSessionAsync(searchContext).get() // with Suspend
             // 検索対象のデータ型定義(NoteDocで定義したクラス)をApp　searchの検索処理セッションに登録する。
@@ -40,8 +37,7 @@ class AppSearchRepository(private val context: Context) : NoteIndex {
                 .addDocumentClasses(NoteDoc::class.java)
                 .setForceOverride(true)
                 .build()
-            resolvedSession.setSchemaAsync(req).get() // with Suspend
-
+            resolvedSession.setSchemaAsync(req).get() // SchemaにNoteDoc形式をセット、with Suspend
             session = resolvedSession
             resolvedSession
         } // 　NoteDocを登録した検索セッションを初回は作成し、class propertyに保存。2回目以降は保存したセッションを返す。
@@ -50,11 +46,11 @@ class AppSearchRepository(private val context: Context) : NoteIndex {
         treeUri: Uri,
         onProgress: (processed: Int, total: Int) -> Unit = { _, _ -> }
     ): Int = withContext(Dispatchers.IO) {
-        val s = ensureSession() // notes-db の SearchSession（Schema済）
-        // 呼び出し元(ここではSearchScreenでユーザーが選択)で得たTreeUriからフォルダのルートを得る(なければ早期リターン)
+        val s = ensureSession() // database:notes-db, Schema:NoteDoc の SearchSession
+        // 呼び出し元(ここではSearchScreenでユーザーが選択したフォルダ)から与えられたTreeUriからフォルダのルートを得る(なければ早期リターン)
         val root = DocumentFile.fromTreeUri(context, treeUri) ?: return@withContext 0
-        //  まず 下位ディレクトリも含め.md を全部集めて総数を出す（1パス）
 
+        //  まず 下位ディレクトリも含め.md を全部集めて総数を出す（1パス）
         fun collect(dir: DocumentFile, out: MutableList<DocumentFile>) {
             dir.listFiles().forEach { f ->
                 if (f.isDirectory) collect(f, out)
@@ -64,10 +60,22 @@ class AppSearchRepository(private val context: Context) : NoteIndex {
 
         val mdFiles = mutableListOf<DocumentFile>().also { collect(root, it) }
         val total = mdFiles.size
-        Log.d("list files", "root.listFiles().size=${total}")
+        Log.d("indexAllFromTree", "root.listFiles().size=${total}")
         val indexBeginTime = System.currentTimeMillis()
-        Log.i("indexAllFromTree", "indexing has began at $indexBeginTime")
-        onProgress(0, total)
+        Log.d("indexAllFromTree", "indexing has began at $indexBeginTime")
+        onProgress(0, total*2)
+
+       // リンク作成のためタイトル読み込み。 (2パス)
+
+        val firstStageNotes = MutableList(total){ i->
+            onProgress(i, total*2)
+            FirstStageNotes(
+            file = mdFiles[i],
+            id = stableId(mdFiles[i].uri.toString()),
+            title = mdFiles[i].name?.removeSuffix(".md") ?: "unNamed"
+            )
+        }
+
 
         // 進捗表示を可能にするため、1回めは全体数走査（Total）、2回めで呼び出し元のprocessを増やしながらインデックス作成する
         var processed = 0
@@ -77,9 +85,11 @@ class AppSearchRepository(private val context: Context) : NoteIndex {
             context.contentResolver.openInputStream(f.uri)?.use { ins ->
                 // URI上のファイルからNoteDocの形式でDocumentFile構造を作成
                 val rawText = ins.bufferedReader(Charsets.UTF_8).readText()
+
                 val title = f.name?.removeSuffix(".md") ?: "untitled"
                 val id = stableId(f.uri.toString()) // 固有のIDを作る
                 val updatedAt = (f.lastModified()).takeIf { it > 0 } ?: System.currentTimeMillis()
+
                 val tags = parseTagsFromText(rawText)
                 val parsedText = parseInternalLinks(rawText) // [](title) →　[](docid:docid)
                 notes += NoteDoc(
@@ -224,7 +234,7 @@ class AppSearchRepository(private val context: Context) : NoteIndex {
 
         val spec = SearchSpec.Builder()
             .addFilterNamespaces("notes")
-            .addFilterProperties(NoteDoc::class.java,propertyPaths)
+ //           .addFilterProperties(NoteDoc::class.java,propertyPaths)
             .setTermMatch(SearchSpec.TERM_MATCH_EXACT_ONLY)
             .setResultCountPerPage(1)
             .build()
@@ -311,3 +321,9 @@ data class SearchHit(
     val title: String,
     val snippet: String
 ) //　虫垂炎
+data class FirstStageNotes(
+    val file: DocumentFile,
+    val title: String,
+    val id: String
+)
+
