@@ -8,7 +8,6 @@ private val tagLineRegex = Regex("""^\s*(tag|tags|Tag|Tags|TAG|TAGs|タグ)\s*:\
  * Tag: 虫垂炎 診断 治療
  * Tag: 便秘, 大腸内視鏡 / 鎮静
  */
-
 fun parseTagsFromText(text: String): List<String> {
     val line = text.lineSequence().firstOrNull { tagLineRegex.containsMatchIn(it) } ?: return emptyList()
     val raw = tagLineRegex.find(line)?.groupValues?.getOrNull(2)?.trim().orEmpty()
@@ -20,9 +19,5 @@ fun parseTagsFromText(text: String): List<String> {
         .filter { it.isNotEmpty() }
         .distinct()
 }
-
-
-
-
 fun nfkc(s: String): String =
     Normalizer.normalize(s, Normalizer.Form.NFKC).trim()

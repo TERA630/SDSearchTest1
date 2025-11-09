@@ -75,9 +75,8 @@ class AppSearchRepository(private val context: Context) : NoteIndex {
             title = mdFiles[i].name?.removeSuffix(".md") ?: "unNamed"
             )
         }
-        Log.d("indexAllFromTree", "collecting file took  {${System.currentTimeMillis()}-$indexBeginTime}")
-
-
+        val collectingTime =  System.currentTimeMillis() - indexBeginTime
+        Log.d("indexAllFromTree", "collecting file took $collectingTime ms")
 
         // 進捗表示を可能にするため、1回めは全体数走査（Total）、2回めで呼び出し元のprocessを増やしながらインデックス作成する
         var processed = 0
@@ -328,4 +327,3 @@ data class FirstStageNotes(
     val title: String,
     val id: String
 )
-

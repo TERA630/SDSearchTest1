@@ -9,7 +9,6 @@ import androidx.appsearch.app.AppSearchSchema.StringPropertyConfig
 data class NoteDoc(
     @Document.Namespace
     val namespace: String = "notes",
-
     @Document.Id
     val id: String,
 // -----------------------------------------------------------------------------------
