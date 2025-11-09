@@ -20,9 +20,7 @@ import androidx.core.net.toUri
 import androidx.appsearch.app.GetByDocumentIdRequest
 import kotlin.text.split
 class AppSearchRepository(private val context: Context) : NoteIndex {
-
     private val linkTargetInsideParens = Regex("""(?<=]\()(.+?)(?=\))""")
-
     // ］と（の連続があった直後の部位でかつ、)が直後にある　文字列に最短マッチ＝　[リンクテキスト（注釈1）](リンク先(注釈2))
     private val wikilink = Regex("""\[([^\[]+)]]""")
 
@@ -83,9 +81,7 @@ class AppSearchRepository(private val context: Context) : NoteIndex {
                 val id = stableId(f.uri.toString()) // 固有のIDを作る
                 val updatedAt = (f.lastModified()).takeIf { it > 0 } ?: System.currentTimeMillis()
                 val tags = parseTagsFromText(rawText)
-
                 val parsedText = parseInternalLinks(rawText) // [](title) →　[](docid:docid)
-
                 notes += NoteDoc(
                     id = id,
                     path = f.uri.toString(),
@@ -118,7 +114,6 @@ class AppSearchRepository(private val context: Context) : NoteIndex {
         Log.i("indexAllFromTree", "indexing takes $indexTime ms ")
         notes.size
     } // URIで与えられたフォルダ以下のファイルをNoteDocクラス形式でインデックス化
-
     suspend fun clearAll(): Void? = withContext(Dispatchers.IO) {
         val session = ensureSession()
         val searchSpec = SearchSpec.Builder()
@@ -127,14 +122,12 @@ class AppSearchRepository(private val context: Context) : NoteIndex {
         // 空のクエリと名前空間フィルタで、該当するすべてのドキュメントを削除
         session.removeAsync("", searchSpec).get()
     } // 作成したインデックスを削除
-
     suspend fun getMarkdownByPath(path: String): String = withContext(Dispatchers.IO) {
         val uri = path.toUri()
         context.contentResolver.openInputStream(uri)?.use { ins ->
             BufferedReader(InputStreamReader(ins, Charsets.UTF_8)).readText()
         } ?: ""
     }
-
     @SuppressLint("RequiresFeature")
     suspend fun search(query: String, limit: Int = 100): List<SearchHit> =
         withContext(Dispatchers.IO) {
@@ -209,10 +202,8 @@ class AppSearchRepository(private val context: Context) : NoteIndex {
             // 最終的に List<SearchHit> を返す
             sortedRows.map { it.hit }
         }
-
     private fun stableId(path: String): String =
         UUID.nameUUIDFromBytes(path.toByteArray()).toString()
-
     override suspend fun findNoteById(id: String): NoteDoc? = withContext(Dispatchers.IO) {
         val s = ensureSession()
         val req = GetByDocumentIdRequest.Builder("notes")
@@ -229,11 +220,15 @@ class AppSearchRepository(private val context: Context) : NoteIndex {
 
     override suspend fun findNoteByTitle(title: String): NoteDoc? = withContext(Dispatchers.IO) {
         val s = ensureSession()
+        val propertyPaths = mutableListOf("title")
+
         val spec = SearchSpec.Builder()
             .addFilterNamespaces("notes")
-            .setTermMatch(SearchSpec.TERM_MATCH_PREFIX)
+            .addFilterProperties(NoteDoc::class.java,propertyPaths)
+            .setTermMatch(SearchSpec.TERM_MATCH_EXACT_ONLY)
             .setResultCountPerPage(1)
             .build()
+
         val query = nfkc(title)
         val results = s.search(query, spec)
         val page = results.nextPageAsync.get()
@@ -251,7 +246,7 @@ class AppSearchRepository(private val context: Context) : NoteIndex {
             updatedAt = doc.getPropertyLong("updatedAt")
         )
     }
-    override suspend fun resolveTitleTold(title: String): String? {
+    override suspend fun resolveTitleToId(title: String): String? {
         val note = findNoteByTitle(title)
         if (note == null) {
             Log.w("resolveTitleTold", "no document was found by $title")
@@ -287,7 +282,7 @@ class AppSearchRepository(private val context: Context) : NoteIndex {
                     target
                 } else {
                     // suspend 関数を安全に呼び出す
-                    resolveTitleTold(target)?.let { id ->
+                    resolveTitleToId(target)?.let { id ->
                         Log.d("parseInternalLink", "target=$target was parsed as docid=$id")
                         "docid:$id"
                     } ?: run {
@@ -308,7 +303,7 @@ class AppSearchRepository(private val context: Context) : NoteIndex {
 interface NoteIndex {
     suspend fun findNoteById(id: String): NoteDoc?
     suspend fun findNoteByTitle(title: String): NoteDoc?
-    suspend fun resolveTitleTold(title: String): String? // タイトルからDocid
+    suspend fun resolveTitleToId(title: String): String? // タイトルからDocid
 }
 data class SearchHit(
     val id: String,
