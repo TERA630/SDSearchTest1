@@ -20,8 +20,6 @@ import java.util.UUID
 import androidx.core.net.toUri
 import androidx.appsearch.app.GetByDocumentIdRequest
 import kotlin.text.split
-
-
 class AppSearchRepository(private val context: Context) {
 
     private val linkTargetInsideParens = Regex("""(?<=]\()(.+?)(?=\))""")
@@ -46,15 +44,14 @@ class AppSearchRepository(private val context: Context) {
 
             session = resolvedSession
             resolvedSession
-        } // 　NoteDocを登録した検索処理セッションを初回は作成し、class propertyと、呼び出し元に返す。
-
+        } // 　NoteDocを登録した検索セッションを初回は作成し、class propertyに保存。2回目以降は保存したセッションを返す。
     suspend fun indexAllFromTree(treeUri: Uri,
              onProgress:(processed: Int, total: Int) -> Unit ={ _, _->}
     ): Int = withContext(Dispatchers.IO) {
         val s = ensureSession() // notes-db の SearchSession（Schema済）
         // 呼び出し元(ここではSearchScreenでユーザーが選択)で得たTreeUriからフォルダのルートを得る(なければ早期リターン)
         val root = DocumentFile.fromTreeUri(context, treeUri) ?: return@withContext 0
-    //  まず 下位ディレクトリも含め.md を全部集めて総数を出す（1パス）
+        //  まず 下位ディレクトリも含め.md を全部集めて総数を出す（1パス）
 
         fun collect(dir: DocumentFile, out: MutableList<DocumentFile>) {
             dir.listFiles().forEach { f ->
@@ -62,13 +59,13 @@ class AppSearchRepository(private val context: Context) {
                 else if (f.isFile && f.name?.endsWith(".md", ignoreCase = true) == true) out += f
             }
         } // 下位フォルダを探すための関数
-        //
+
         val mdFiles = mutableListOf<DocumentFile>().also{ collect(root, it) }
         val total = mdFiles.size
         Log.d("list files","root.listFiles().size=${total}")
         onProgress(0,total)
 
-        // 2Pass Making Index
+        // 進捗表示を可能にするため、1回めは全体数走査（Total）、2回めで呼び出し元のprocessを増やしながらインデックス作成する
         var processed = 0
         val notes = mutableListOf<NoteDoc>()   // ← NoteDoc を貯めるリスト
 
@@ -77,10 +74,10 @@ class AppSearchRepository(private val context: Context) {
                 // URI上のファイルからNoteDocの形式でDocumentFile構造を作成
                 val rawText = ins.bufferedReader(Charsets.UTF_8).readText()
                 val title = f.name?.removeSuffix(".md") ?: "untitled"
-                val id = stableId(f.uri.toString())
+                val id = stableId(f.uri.toString()) // 固有のIDを作る
                 val updatedAt = (f.lastModified()).takeIf { it > 0 } ?: System.currentTimeMillis()
                 val tags = parseTagsFromText(rawText)
-                val parsedText = parseInternalLinks(rawText)
+                val parsedText = parseInternalLinks(rawText) // []() →　[](doc:URI)
 
                 notes += NoteDoc(
                     id = id,
@@ -94,9 +91,11 @@ class AppSearchRepository(private val context: Context) {
             processed++
             onProgress(processed,total)
         }
+        if (notes.isEmpty()) {
+            Log.w("IndexFromUri","No documents were indexed.")
+            return@withContext 0
+        } // 空ならエラーを出して早期リターン
 
-        // 空なら早期リターン（走査ミスの検知に役立つ）
-        if (notes.isEmpty()) return@withContext 0
         Log.d("AppSearch","notes.size=${notes.size}")
 
         // バッチ投入（100件ずつ）
@@ -107,10 +106,9 @@ class AppSearchRepository(private val context: Context) {
 
             Log.d("AppSearch","put chunk.size=${chunk.size}")
             s.putAsync(req).get()
-
         }
         notes.size
-    }
+    } // URIで与えられたフォルダ以下のファイルをNoteDocクラス形式でインデックス化
     suspend fun clearAll(): Void? = withContext(Dispatchers.IO) {
         val session = ensureSession()
         val searchSpec = SearchSpec.Builder()
@@ -118,7 +116,7 @@ class AppSearchRepository(private val context: Context) {
             .build()
         // 空のクエリと名前空間フィルタで、該当するすべてのドキュメントを削除
         session.removeAsync("", searchSpec).get()
-    }
+    } // 作成したインデックスを削除
     suspend fun getMarkdownByPath(path: String): String = withContext(Dispatchers.IO) {
         val uri = path.toUri()
         context.contentResolver.openInputStream(uri)?.use { ins ->
@@ -137,7 +135,7 @@ class AppSearchRepository(private val context: Context) {
             .addFilterNamespaces("notes")
             .setTermMatch(SearchSpec.TERM_MATCH_PREFIX) // 前方一致
             .setSnippetCount(1) // 各ドキュメント1スニペット
-            .setMaxSnippetSize(120)
+            .setMaxSnippetSize(120) // スニペットは120文字
             .setSnippetCountPerProperty(1)
             .setRankingStrategy(SearchSpec.RANKING_STRATEGY_RELEVANCE_SCORE)
             .setResultCountPerPage(limit)
@@ -185,7 +183,6 @@ class AppSearchRepository(private val context: Context) {
                 tagScore = tagScore
             )
         }
-
         // isWeightSupportedがfalseの場合のみ、tagScoreでソート
         val sortedRows = if (!isWeightSupported) {
             rows.sortedWith(
@@ -195,39 +192,59 @@ class AppSearchRepository(private val context: Context) {
         } else {
             rows // AppSearchの順序を維持
         }
-
         // 最終的に List<SearchHit> を返す
         sortedRows.map { it.hit }
     }
     private fun stableId(path: String): String =
         UUID.nameUUIDFromBytes(path.toByteArray()).toString()
-    
     suspend fun getNoteById(id: String): NoteDoc? = withContext(Dispatchers.IO) {
         val s = ensureSession()
         val req = GetByDocumentIdRequest.Builder("notes")
             .addIds(id)
             .build()
         val res = s.getByDocumentIdAsync(req).get() // Suspend
-        
-    // GenericDocument → NoteDoc に変換
+        // GenericDocument → NoteDoc に変換
         val gd = res.successes[id]
         gd?.toDocumentClass(NoteDoc::class.java)
     }
-
+    suspend fun getNoteByTitle(title: String): NoteDoc? = withContext(Dispatchers.IO){
+        val s = ensureSession()
+        val spec = SearchSpec.Builder()
+            .addFilterNamespaces("notes")
+            .setTermMatch(SearchSpec.TERM_MATCH_PREFIX)
+            .setResultCountPerPage(1)
+            .build()
+        val query = "title:${nfkc(title)}"
+        val results = s.search(query, spec)
+        val page = results.nextPageAsync.get()
+        if(page.isNullOrEmpty()) { Log.w("findNoteByTitle","no document was found by $query")
+            return@withContext null
+        }
+        val doc = page.firstOrNull()?.genericDocument ?: return@withContext null
+        NoteDoc(
+            id = doc.id,
+            path = doc.getPropertyString("path")?: "",
+            title = doc.getPropertyString("title")?:"",
+            content = doc.getPropertyString("content") ?:"",
+            tags = doc.getPropertyStringArray("tags")?.toList().orEmpty(),
+            updatedAt = doc.getPropertyLong("updatedAt")
+        )
+    }
     fun parseInternalLinks(raw: String): String {
         return linkTargetInsideParens.replace(raw){ m ->
             val target = m.value.trim()
             val keepAsis = target.contains("://") ||
-                    target.startsWith("mailto:",ignoreCase = true) ||
                     target.startsWith("#") ||
                     target.startsWith("doc:",ignoreCase = true) ||
-                    target.startsWith("docid:", ignoreCase = true)
-            if (keepAsis) { target }
-            else {
-                Log.i("AppSearchRepository","target=$target was parsed as internal links")
-                "doc:" + Uri.encode(target)}
+                    target.startsWith("docId:", ignoreCase = true)
+            if (keepAsis) {
+                target
+            } else {
+                Log.d("AppSearchRepository","target=$target was parsed as internal links")
+                val encodedTarget= Uri.encode(target)
+                "doc:${encodedTarget}"
+            }
         }
-
     }
 }
 data class SearchHit(
@@ -236,3 +253,4 @@ data class SearchHit(
     val title: String,
     val snippet: String
 )
+//　虫垂炎

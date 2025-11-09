@@ -17,7 +17,6 @@ import androidx.compose.ui.unit.dp
 import dev.jeziellago.compose.markdowntext.MarkdownText
 import io.github.tera630.sdsearchtest1.data.AppSearchRepository
 import io.github.tera630.sdsearchtest1.data.NoteDoc
-import kotlin.math.log
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
