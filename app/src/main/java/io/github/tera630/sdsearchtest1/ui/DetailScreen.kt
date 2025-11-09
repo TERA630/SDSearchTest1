@@ -29,7 +29,7 @@ fun DetailScreen(
 
     LaunchedEffect(id) {
         state = UiState.Loading // 初回実行時やIdが変更されたときにここが実行される。
-        runCatching { repo.getNoteById(id) }
+        runCatching { repo.findNoteById(id) }
             .onSuccess { note ->
                 state = if (note != null) UiState.Ready(note) else UiState.NotFound
             }
@@ -60,7 +60,7 @@ fun DetailScreen(
                             onLinkClicked = { href ->
                                 when{
                                     href.startsWith("doc:") ->{
-                                        val title = Uri.decode(href.removePrefix("doc:")).trim()
+                                        val title = href.removePrefix("doc:").trim()
                                         Log.d("onLinkClicked","onLinkClicked: $title")
                                     }
 
