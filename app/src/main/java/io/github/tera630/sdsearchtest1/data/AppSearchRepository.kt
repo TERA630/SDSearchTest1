@@ -143,12 +143,7 @@ class AppSearchRepository(private val context: Context) : NoteIndex {
         // 空のクエリと名前空間フィルタで、該当するすべてのドキュメントを削除
         session.removeAsync("", searchSpec).get()
     } // 作成したインデックスを削除
-    suspend fun getMarkdownByPath(path: String): String = withContext(Dispatchers.IO) {
-        val uri = path.toUri()
-        context.contentResolver.openInputStream(uri)?.use { ins ->
-            BufferedReader(InputStreamReader(ins, Charsets.UTF_8)).readText()
-        } ?: ""
-    }
+
     @SuppressLint("RequiresFeature")
     suspend fun search(query: String, limit: Int = 100): List<SearchHit> =
         withContext(Dispatchers.IO) {
