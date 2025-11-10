@@ -1,5 +1,4 @@
 package io.github.tera630.sdsearchtest1.ui
-
 import android.net.Uri
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -13,7 +12,6 @@ import androidx.compose.ui.unit.dp
 import io.github.tera630.sdsearchtest1.data.SearchHit
 import java.text.SimpleDateFormat
 import java.util.*
-
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SearchScreen(
@@ -81,9 +79,7 @@ fun SearchScreen(
                     Text("${p.processed} / ${p.total}")
                 }
             }
-
             Spacer(Modifier.height(12.dp))
-
             OutlinedTextField(
                 value = q,
                 onValueChange = { q = it },
@@ -94,9 +90,7 @@ fun SearchScreen(
             Spacer(Modifier.height(8.dp))
             Row {
                 Button(onClick = { vm.search(q) }, enabled = !indexing) { Text("検索") }
-                // 右側は TopBar のアクションにあるためボタンは置かない（要件通り「検索ボタンのみ」）
             }
-
             Spacer(Modifier.height(12.dp))
             ResultList(hits, onOpen)
         }
@@ -119,7 +113,7 @@ private fun ResultList(hits: List<SearchHit>, onOpen: (String) -> Unit) {
                     .clickable( enabled = true,
                         onClick = {
                             onOpen(h.id)
-                        }
+                        } // Click時は呼び出し元からDetailScreenへIDを渡してNavigateのラムダをもらってるので､それが開く｡
                     )
             )
             HorizontalDivider()

@@ -1,5 +1,5 @@
 package io.github.tera630.sdsearchtest1.ui
-
+import android.net.Uri
 import android.util.Log
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
@@ -16,15 +16,18 @@ import androidx.compose.ui.unit.dp
 import dev.jeziellago.compose.markdowntext.MarkdownText
 import io.github.tera630.sdsearchtest1.data.AppSearchRepository
 import io.github.tera630.sdsearchtest1.data.NoteDoc
+import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun DetailScreen(
     id: String,
     repo: AppSearchRepository,
-    onBack: () -> Unit
+    onBack: () -> Unit,
+    onOpen:(String) -> Unit,
 ) {
     var state by remember { mutableStateOf<UiState>(UiState.Loading) }
+    val scope = rememberCoroutineScope()
 
     LaunchedEffect(id) {
         state = UiState.Loading // 初回実行時やIdが変更されたときにここが実行される。
@@ -58,14 +61,28 @@ fun DetailScreen(
                             modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
                             onLinkClicked = { href ->
                                 when{
-                                    href.startsWith("doc:") ->{
-                                        val title = href.removePrefix("doc:").trim()
-                                        Log.d("onLinkClicked","onLinkClicked: $title")
+                                    href.startsWith("docid:", ignoreCase = true) ->{
+                                        val targetId = href.removePrefix("docid:").trim()
+                                        if(targetId.isNotEmpty()){
+                                            onOpen(targetId)
+                                        }
                                     }
-
+                                    href.startsWith("doc:", ignoreCase = true) -> {
+                                        val title = Uri.decode(href.removePrefix("doc:").trim())
+                                        scope.launch {
+                                            val resolved = repo.resolveTitleToId(title)
+                                            if(resolved != null){
+                                                onOpen(resolved)
+                                            } else {
+                                                Log.w("DetailScreen", "Failed to resolve title: $title")
+                                            }
+                                        }
+                                    }
+                                    else -> {
+                                        Log.d("DetailScreen", "pass-through $href")
+                                    }
                                 }
                             }
-
                         )
                     }
                 }

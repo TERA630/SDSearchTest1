@@ -1,5 +1,4 @@
 package io.github.tera630.sdsearchtest1
-
 import android.net.Uri
 import android.os.Bundle
 import androidx.activity.ComponentActivity
@@ -17,7 +16,6 @@ import io.github.tera630.sdsearchtest1.data.IndexStateStore
 import io.github.tera630.sdsearchtest1.ui.DetailScreen
 import io.github.tera630.sdsearchtest1.ui.MainViewModel
 import io.github.tera630.sdsearchtest1.ui.SearchScreen
-
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -32,21 +30,27 @@ class MainActivity : ComponentActivity() {
                     return MainViewModel(repo, store = store) as T
                 }
             })
-
             NavHost(navController = nav, startDestination = "search") {
                 composable("search") {
                     SearchScreen(vm = vm, onOpen = { id ->
                         nav.navigate("detail?id=${Uri.encode(id)}")
-                    })
+
+                    }) // SearchScreen内部で検索結果のアイテムクリック時で起動するラムダを渡す｡
                 }
                 composable(
                     route = "detail?id={id}",
                     arguments = listOf(navArgument("id") { type = NavType.StringType; defaultValue = "" })
                 ) { backStackEntry ->
                     val id = backStackEntry.arguments?.getString("id").orEmpty()
-                    DetailScreen(id = id, repo = repo)
-                    { nav.popBackStack() }
+                    DetailScreen(id = id,
+                        repo = repo,
+                        onBack = { nav.popBackStack() },
+                        onOpen = { newId ->
+                            nav.navigate("detail?id=${Uri.encode(newId)}")
+                        })
                 }
+
+
             }
         }
     }
