@@ -10,8 +10,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import io.github.tera630.sdsearchtest1.data.SearchHit
-import java.text.SimpleDateFormat
-import java.util.*
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SearchScreen(
