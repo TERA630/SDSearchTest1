@@ -50,7 +50,7 @@ class AppSearchRepository(private val context: Context) : NoteIndex {
         // 呼び出し元(ここではSearchScreenでユーザーが選択したフォルダ)から与えられたTreeUriからフォルダのルートを得る(なければ早期リターン)
         val root = DocumentFile.fromTreeUri(context, treeUri) ?: return@withContext 0
 
-        //  まず 下位ディレクトリも含め.md を全部集めて総数を出す（1パス）
+        //  全ファイル取得
         fun collect(dir: DocumentFile, out: MutableList<DocumentFile>) {
             dir.listFiles().forEach { f ->
                 if (f.isDirectory) collect(f, out)
@@ -60,25 +60,37 @@ class AppSearchRepository(private val context: Context) : NoteIndex {
 
         val mdFiles = mutableListOf<DocumentFile>().also { collect(root, it) }
         val total = mdFiles.size
-        Log.d("indexAllFromTree", "root.listFiles().size=${total}")
+        Log.d("indexAllFromTree", "対象フォルダのファイル数は${total}")
+
         val indexBeginTime = System.currentTimeMillis()
         Log.d("indexAllFromTree", "indexing has began at $indexBeginTime")
-        onProgress(0, total*2)
 
-       // リンク作成のためタイトル読み込み。 (2パス)
+        onProgress(0, total)
 
-        val firstStageNotes = MutableList(total){ i->
-            onProgress(i, total*2)
-            FirstStageNotes(
-            file = mdFiles[i],
-            id = stableId(mdFiles[i].uri.toString()),
-            title = mdFiles[i].name?.removeSuffix(".md") ?: "unNamed"
-            )
+        //　タイトル：ID　の　対応map 作成
+
+        val titleToId = LinkedHashMap<String, String>()
+        val duplicates = mutableListOf<String>() // タイトルが重複した場合はこちらのリストに入る。
+        for (f in mdFiles) {
+            val rawTitle = f.name?.removeSuffix(".md") ?: "untitled"
+            val title = nfkc(rawTitle)                 // 既存の正規化関数を利用（NFKC）:contentReference[oaicite:1]{index=1}
+            val id = stableId(f.uri.toString())
+            val key = title.lowercase()
+            if (titleToId.containsKey(key)) {
+                duplicates += title                     // 重複の検出だけログに回す
+            } else {
+                titleToId[key] = id
+            }
         }
-        val collectingTime =  System.currentTimeMillis() - indexBeginTime
-        Log.d("indexAllFromTree", "collecting file took $collectingTime ms")
+        if (duplicates.isNotEmpty()) {
+            Log.w("Index", "duplicated titles: $duplicates") // ポリシー：先勝ち
+        }
+        val titleMapTime = System.currentTimeMillis() - indexBeginTime
+        Log.d("indexAllFromTree", "title map has made at $titleMapTime")
 
-        // 進捗表示を可能にするため、1回めは全体数走査（Total）、2回めで呼び出し元のprocessを増やしながらインデックス作成する
+
+        //　インデックス開始
+
         var processed = 0
         val notes = mutableListOf<NoteDoc>()   // ← NoteDoc を貯めるリスト
 
@@ -86,13 +98,14 @@ class AppSearchRepository(private val context: Context) : NoteIndex {
             context.contentResolver.openInputStream(f.uri)?.use { ins ->
                 // URI上のファイルからNoteDocの形式でDocumentFile構造を作成
                 val rawText = ins.bufferedReader(Charsets.UTF_8).readText()
-
-                val title = f.name?.removeSuffix(".md") ?: "untitled"
-                val id = stableId(f.uri.toString()) // 固有のIDを作る
+                val rawTitle = f.name?.removeSuffix(".md") ?: "untitled"
+                val title = nfkc(rawTitle)
+                val id = titleToId[title.lowercase()]!!
                 val updatedAt = (f.lastModified()).takeIf { it > 0 } ?: System.currentTimeMillis()
-
                 val tags = parseTagsFromText(rawText)
-                val parsedText = parseInternalLinks(rawText) // [](title) →　[](docid:docid)
+
+                val parsedText = parseInternalLinks(rawText,titleToId) // [](title) →　[](docid:docid)
+
                 notes += NoteDoc(
                     id = id,
                     path = f.uri.toString(),
@@ -106,18 +119,15 @@ class AppSearchRepository(private val context: Context) : NoteIndex {
             onProgress(processed, total)
         }
         if (notes.isEmpty()) {
-            Log.w("IndexFromUri", "No documents were indexed.")
+            Log.w("IndexFromTree", "No documents were indexed.")
             return@withContext 0
         } // 空ならエラーを出して早期リターン
-
-        Log.d("AppSearch", "notes.size=${notes.size}")
 
         // バッチ投入（100件ずつ）
         notes.chunked(100).forEach { chunk ->
             val req = PutDocumentsRequest.Builder()
                 .addDocuments(chunk)       // ← 型付きドキュメント
                 .build()
-
             Log.d("AppSearch", "put chunk.size=${chunk.size}")
             s.putAsync(req).get()
         }
@@ -270,7 +280,7 @@ class AppSearchRepository(private val context: Context) : NoteIndex {
         return null
     }
 
-    suspend fun parseInternalLinks(raw: String): String {
+    suspend fun parseInternalLinks(raw: String,titleToId:Map<String,String>): String {
             // [[title]] ウィキリンクを[title](title)に寄せる
             val stage1 = wikilink.replace(raw) { m ->
                 "[${m.groupValues[1]}](${m.groupValues[1]})"
@@ -278,7 +288,9 @@ class AppSearchRepository(private val context: Context) : NoteIndex {
             val result = StringBuilder()
 
             var lastIndex = 0
+
             // 正規表現にマッチするすべての箇所をループ処理
+
             linkTargetInsideParens.findAll(stage1).forEach { m ->
                 val target = m.value.trim()
                 // 直前のマッチの終わりから、今回のマッチの始まりまでを追加
@@ -292,18 +304,20 @@ class AppSearchRepository(private val context: Context) : NoteIndex {
                 val replacement = if (passThrough) {
                     target
                 } else {
-                    // suspend 関数を安全に呼び出す
-                    resolveTitleToId(target)?.let { id ->
-                        Log.d("parseInternalLink", "target=$target was parsed as docid=$id")
+                    val key = nfkc(target).lowercase()
+                    titleToId[key]?.let { id ->
                         "docid:$id"
+                        Log.d("parseInternalLinks", "$key was parsed into docid:$id")
                     } ?: run {
-                        Log.w("parseInternalLink", "target=$target was not found")
-                        "doc:" + Uri.encode(target)
+                        Log.w("parseInternalLinks", "no id was associated by $target")
+                        ("doc:" + Uri.encode(target))
                     }
                 }
+
                 result.append(replacement)
-                lastIndex = m.range.last + 1
+                lastIndex = m.range.last + 1 // マッチした部位の次の文字からつぎの走査を開始。
             }
+
             // 最後のマッチ以降の残りの文字列を追加
             if (lastIndex < stage1.length) {
                 result.append(stage1.substring(lastIndex))
