@@ -14,7 +14,7 @@ fun FolderPickerButton(onPicked: (Uri) -> Unit) {
     val ctx = LocalContext.current
     val launcher = rememberLauncherForActivityResult(
         ActivityResultContracts.OpenDocumentTree() // どんなアクティビティ起動：ここではDocumentTreeでuri型のオブジェクトが返る。
-    ) { uri ->                                              // アクティビティ終了時にここが呼ばれる。
+    ) { uri ->                                              // アクティビティ終了時のコールバック｡
         uri?.let {
             val flags = Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION
             ctx.contentResolver.takePersistableUriPermission(it, flags)

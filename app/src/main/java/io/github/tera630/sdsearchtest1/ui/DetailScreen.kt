@@ -13,8 +13,10 @@ import androidx.compose.runtime.*
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.unit.dp
 import dev.jeziellago.compose.markdowntext.MarkdownText
+
 import io.github.tera630.sdsearchtest1.data.AppSearchRepository
 import io.github.tera630.sdsearchtest1.data.NoteDoc
 import kotlin.math.log
@@ -52,8 +54,6 @@ fun DetailScreen(
             is UiState.Ready -> {
 
                 LazyColumn(Modifier.padding(pad)) {
-                    // 本文内のタイトル表示は不要であれば削除しても良い
-                    item { Text(s.note.title, style = MaterialTheme.typography.titleLarge, modifier = Modifier.padding(16.dp)) }
                     item {
                         MarkdownText(
                             markdown = s.note.content,   // ← インデックスに保存した本文を表示
