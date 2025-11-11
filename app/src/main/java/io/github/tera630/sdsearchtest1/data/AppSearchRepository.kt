@@ -295,13 +295,11 @@ class AppSearchRepository(private val context: Context) : NoteIndex {
                     val key = nfkc(target).lowercase()
                     titleToId[key]?.let { id ->
                         "docid:$id"
-                        Log.d("parseLinks", "$key was parsed into docid:$id")
                     } ?: run {
-                        Log.w("parseLinks", "no id was associated by $target")
                         ("doc:" + Uri.encode(target))
                     }
                 }
-
+                Log.d("parseLinks", "$target was parsed into $replacement")
                 result.append(replacement)
                 lastIndex = m.range.last + 1 // マッチした部位の次の文字からつぎの走査を開始。
             }
