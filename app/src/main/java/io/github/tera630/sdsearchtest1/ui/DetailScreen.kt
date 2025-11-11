@@ -26,6 +26,7 @@ fun DetailScreen(
     onOpen:(String) -> Unit,
 ) {
     var state by remember { mutableStateOf<UiState>(UiState.Loading) }
+    val scope = rememberCoroutineScope()
 
     LaunchedEffect(id) {
         state = UiState.Loading // 初回実行時やIdが変更されたときにここが実行される。
@@ -57,23 +58,19 @@ fun DetailScreen(
                             markdown = s.note.content,   // ← インデックスに保存した本文を表示
                             modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
                             onLinkClicked = { href ->
-                                when{
-                                    href.startsWith("docid:", ignoreCase = true) ->{
-                                        val targetId = href.removePrefix("docid:").trim()
-                                        if(targetId.isNotEmpty()){
-                                            onOpen(targetId)
-                                        }
-                                Log.d( "detailScreen","$href was clicked")
+                                Log.d("DetailScreen", "$href was clicked")
                                 when {
                                     href.startsWith("docid:", ignoreCase = true) -> {
                                         val targetId = href.removePrefix("docid:").trim()
-                                        if (targetId.isNotEmpty()) onOpen(targetId)
+                                        if (targetId.isNotEmpty()) {
+                                            onOpen(targetId)
+                                        }
                                     }
                                     href.startsWith("doc:", ignoreCase = true) -> {
                                         val title = Uri.decode(href.removePrefix("doc:").trim())
                                         scope.launch {
                                             val resolved = repo.resolveTitleToId(title)
-                                            if(resolved != null){
+                                            if (resolved != null) {
                                                 onOpen(resolved)
                                             } else {
                                                 Log.w("DetailScreen", "Failed to resolve title: $title")
@@ -94,13 +91,13 @@ fun DetailScreen(
 }
 
 @Composable
-private fun BackButton(onClick: () -> Unit) {
+fun BackButton(onClick: () -> Unit) {
     IconButton(onClick = onClick) {
         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
     }
 }
 
-private sealed interface UiState {
+private  sealed interface UiState {
     data object Loading : UiState
     data object NotFound : UiState
     data class Ready(val note: NoteDoc) : UiState
