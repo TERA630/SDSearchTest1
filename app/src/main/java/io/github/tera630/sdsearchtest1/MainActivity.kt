@@ -44,8 +44,12 @@ class MainActivity : ComponentActivity() {
                     arguments = listOf(navArgument("id") { type = NavType.StringType; defaultValue = "" })
                 ) { backStackEntry ->
                     val id = backStackEntry.arguments?.getString("id").orEmpty()
-                    DetailScreen(id = id, repo = repo)
-                    { nav.popBackStack() }
+                    DetailScreen(
+                        id = id,
+                        repo = repo,
+                        onBack = { nav.popBackStack() },
+                        onOpen = { newId -> nav.navigate("detail?id=${Uri.encode(newId)}") } // ← 追加
+                    )
                 }
             }
         }

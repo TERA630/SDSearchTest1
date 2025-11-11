@@ -13,10 +13,7 @@ import androidx.appsearch.localstorage.LocalStorage
 import androidx.documentfile.provider.DocumentFile
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
-import java.io.BufferedReader
-import java.io.InputStreamReader
 import java.util.UUID
-import androidx.core.net.toUri
 import androidx.appsearch.app.GetByDocumentIdRequest
 import kotlin.text.split
 class AppSearchRepository(private val context: Context) : NoteIndex {
@@ -86,8 +83,7 @@ class AppSearchRepository(private val context: Context) : NoteIndex {
             Log.w("Index", "duplicated titles: $duplicates") // ポリシー：先勝ち
         }
         val titleMapTime = System.currentTimeMillis() - indexBeginTime
-        Log.d("indexAllFromTree", "title map has made at $titleMapTime")
-
+        Log.d("indexAllFromTree", "title map making took $titleMapTime")
 
         //　インデックス開始
 
@@ -104,7 +100,7 @@ class AppSearchRepository(private val context: Context) : NoteIndex {
                 val updatedAt = (f.lastModified()).takeIf { it > 0 } ?: System.currentTimeMillis()
                 val tags = parseTagsFromText(rawText)
 
-                val parsedText = parseInternalLinks(rawText,titleToId) // [](title) →　[](docid:docid)
+                val parsedText = parseLinks(rawText,titleToId) // [](title) →　[](docid:docid)
 
                 notes += NoteDoc(
                     id = id,
@@ -275,7 +271,7 @@ class AppSearchRepository(private val context: Context) : NoteIndex {
         return null
     }
 
-    suspend fun parseInternalLinks(raw: String,titleToId:Map<String,String>): String {
+    suspend fun parseLinks(raw: String, titleToId:Map<String,String>): String {
             // [[title]] ウィキリンクを[title](title)に寄せる
             val stage1 = wikilink.replace(raw) { m ->
                 "[${m.groupValues[1]}](${m.groupValues[1]})"
@@ -302,9 +298,9 @@ class AppSearchRepository(private val context: Context) : NoteIndex {
                     val key = nfkc(target).lowercase()
                     titleToId[key]?.let { id ->
                         "docid:$id"
-                        Log.d("parseInternalLinks", "$key was parsed into docid:$id")
+                        Log.d("parseLinks", "$key was parsed into docid:$id")
                     } ?: run {
-                        Log.w("parseInternalLinks", "no id was associated by $target")
+                        Log.w("parseLinks", "no id was associated by $target")
                         ("doc:" + Uri.encode(target))
                     }
                 }
