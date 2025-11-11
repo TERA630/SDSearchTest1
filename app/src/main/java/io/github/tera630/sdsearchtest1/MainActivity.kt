@@ -32,24 +32,24 @@ class MainActivity : ComponentActivity() {
                     return MainViewModel(repo, store = store) as T
                 }
             })
-
             NavHost(navController = nav, startDestination = "search") {
                 composable("search") {
                     SearchScreen(vm = vm, onOpen = { id ->
                         nav.navigate("detail?id=${Uri.encode(id)}")
-                    })
+
+                    }) // SearchScreen内部で検索結果のアイテムクリック時で起動するラムダを渡す｡
                 }
                 composable(
                     route = "detail?id={id}",
                     arguments = listOf(navArgument("id") { type = NavType.StringType; defaultValue = "" })
                 ) { backStackEntry ->
                     val id = backStackEntry.arguments?.getString("id").orEmpty()
-                    DetailScreen(
-                        id = id,
+                    DetailScreen(id = id,
                         repo = repo,
                         onBack = { nav.popBackStack() },
-                        onOpen = { newId -> nav.navigate("detail?id=${Uri.encode(newId)}") } // ← 追加
-                    )
+                        onOpen = { newId ->
+                            nav.navigate("detail?id=${Uri.encode(newId)}")
+                        })
                 }
             }
         }

@@ -47,7 +47,6 @@ class AppSearchRepository(private val context: Context) : NoteIndex {
         // 呼び出し元(ここではSearchScreenでユーザーが選択したフォルダ)から与えられたTreeUriからフォルダのルートを得る(なければ早期リターン)
         val root = DocumentFile.fromTreeUri(context, treeUri) ?: return@withContext 0
 
-        //  全ファイル取得
         fun collect(dir: DocumentFile, out: MutableList<DocumentFile>) {
             dir.listFiles().forEach { f ->
                 if (f.isDirectory) collect(f, out)
@@ -55,7 +54,7 @@ class AppSearchRepository(private val context: Context) : NoteIndex {
             }
         } // 下位フォルダを探すための関数
 
-        val mdFiles = mutableListOf<DocumentFile>().also { collect(root, it) }
+        val mdFiles = mutableListOf<DocumentFile>().also { collect(root, it) } // 全ファイル取得
         val total = mdFiles.size
         Log.d("indexAllFromTree", "対象フォルダのファイル数は${total}")
 
@@ -65,12 +64,11 @@ class AppSearchRepository(private val context: Context) : NoteIndex {
         onProgress(0, total)
 
         //　タイトル：ID　の　対応map 作成
-
         val titleToId = LinkedHashMap<String, String>()
         val duplicates = mutableListOf<String>() // タイトルが重複した場合はこちらのリストに入る。
         for (f in mdFiles) {
             val rawTitle = f.name?.removeSuffix(".md") ?: "untitled"
-            val title = nfkc(rawTitle)                 // 既存の正規化関数を利用（NFKC）:contentReference[oaicite:1]{index=1}
+            val title = nfkc(rawTitle)                 // 既存の正規化関数を利用（NFKC）:contentReference[Title:1]{index=1}
             val id = stableId(f.uri.toString())
             val key = title.lowercase()
             if (titleToId.containsKey(key)) {
@@ -229,7 +227,6 @@ class AppSearchRepository(private val context: Context) : NoteIndex {
         }
         gd?.toDocumentClass(NoteDoc::class.java)
     }
-
     override suspend fun findNoteByTitle(title: String): NoteDoc? = withContext(Dispatchers.IO) {
         val s = ensureSession()
         val propertyPaths = mutableListOf("title")
@@ -327,8 +324,3 @@ data class SearchHit(
     val title: String,
     val snippet: String
 ) //　虫垂炎
-data class FirstStageNotes(
-    val file: DocumentFile,
-    val title: String,
-    val id: String
-)
