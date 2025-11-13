@@ -14,6 +14,9 @@ import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import io.github.tera630.sdsearchtest1.data.AppSearchRepository
 import io.github.tera630.sdsearchtest1.data.IndexStateStore
+import io.github.tera630.sdsearchtest1.data.appsearch.AppSearchNoteRepository
+import io.github.tera630.sdsearchtest1.data.local.AndroidFileRepository
+import io.github.tera630.sdsearchtest1.domain.usecase.IndexNotesUseCase
 import io.github.tera630.sdsearchtest1.ui.DetailScreen
 import io.github.tera630.sdsearchtest1.ui.MainViewModel
 import io.github.tera630.sdsearchtest1.ui.SearchScreen
@@ -21,7 +24,22 @@ import io.github.tera630.sdsearchtest1.ui.SearchScreen
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        val repo = AppSearchRepository(this)
+        val fileRepo = AndroidFileRepository(this)
+        val noteIndexRepo = AppSearchNoteRepository(this)
+        val noteParser = io.github.tera630.sdsearchtest1.domain.service.NoteParser(normalizedTitle->null)
+
+        val indexNotesUseCase = IndexNotesUseCase(
+            fileRepo = fileRepo,
+            noteParser = noteParser,
+            indexRepo = noteIndexRepo
+        )
+        val searchNotesUseCase = io.github.tera630.sdsearchtest1.domain.usecase.SearchNotesUseCase(
+            indexRepo = noteIndexRepo
+        )
+        val findByIdUseCase = io.github.tera630.sdsearchtest1.domain.usecase.FindNoteByIdUseCase(
+            indexRepo = noteIndexRepo
+        )
+
         val store = IndexStateStore(this)
 
         setContent {
@@ -29,7 +47,10 @@ class MainActivity : ComponentActivity() {
             val vm: MainViewModel = viewModel(factory = object : ViewModelProvider.Factory {
                 @Suppress("UNCHECKED_CAST")
                 override fun <T : ViewModel> create(modelClass: Class<T>): T {
-                    return MainViewModel(repo, store = store) as T
+                    return MainViewModel(
+                        indexNotes = indexNotesUseCase,
+                        searchNotes = searchNotesUseCase,
+                        findById = findByIdUseCase, store = store) as T
                 }
             })
             NavHost(navController = nav, startDestination = "search") {
@@ -41,14 +62,16 @@ class MainActivity : ComponentActivity() {
                 }
                 composable(
                     route = "detail?id={id}",
-                    arguments = listOf(navArgument("id") { type = NavType.StringType; defaultValue = "" })
+                    arguments = listOf(
+                        navArgument("id") {
+                            type = NavType.StringType; defaultValue = "" })
                 ) { backStackEntry ->
                     val id = backStackEntry.arguments?.getString("id").orEmpty()
                     DetailScreen(id = id,
-                        repo = repo,
+                        vm = vm,
                         onBack = { nav.popBackStack() },
                         onOpen = { newId ->
-                            nav.navigate("detail?id=${Uri.encode(newId)}")
+                            nav.navigate("detail?$id")
                         })
                 }
             }

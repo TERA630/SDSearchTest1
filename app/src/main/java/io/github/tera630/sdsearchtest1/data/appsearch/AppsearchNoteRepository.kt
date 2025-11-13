@@ -2,42 +2,47 @@ package io.github.tera630.sdsearchtest1.data.appsearch
 
 
 import android.content.Context
+import android.util.Log
 import androidx.appsearch.app.*
 import androidx.appsearch.localstorage.LocalStorage
 import io.github.tera630.sdsearchtest1.domain.model.NoteDoc
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 
 
 class AppSearchNoteRepository(private val context: Context) : NoteIndexRepository {
     private var session: AppSearchSession? = null
 
-    private suspend fun ensureSession(): AppSearchSession {
-        return session ?: LocalStorage.createSearchSessionAsync(
-            LocalStorage.SearchContext.Builder(context, "notes-db").build()
-        ).get().also { s ->
-            // AppSearchのスキーマは“データ用”に別クラスで定義してもOK。まずは簡易にGenericDocumentでいく。
-            // 必要になったら @Document クラスと mapper を用意。
-            session = s
-        }
-    }
+    suspend fun ensureSession(): AppSearchSession =
+        session ?: withContext(Dispatchers.IO) {
+            // 検索処理セッションを作成する。
+            val searchContext = LocalStorage.SearchContext.Builder(context, "notes-db")
+                .build()
+            val resolvedSession =
+                LocalStorage.createSearchSessionAsync(searchContext).get() // with Suspend
+            // 検索対象のデータ型定義(NoteDocで定義したクラス)をApp　searchの検索処理セッションに登録する。
+
+            val req = SetSchemaRequest.Builder()
+                .addDocumentClasses(NoteDoc::class.java)
+                .setForceOverride(true)
+                .build()
+            resolvedSession.setSchemaAsync(req).get() // SchemaにNoteDoc形式をセット、with Suspend
+            session = resolvedSession
+            resolvedSession
+        } // 　NoteDocを登録した検索セッションを初回は作成し、class propertyに保存。2回目以降は保存したセッションを返す。
+
 
     override suspend fun putAll(notes: List<NoteDoc>, onProgress: (Int, Int) -> Unit): Int {
         val s = ensureSession()
         // 100件ずつバッチ
         var processed = 0
         notes.chunked(100).forEach { chunk ->
-            val req = PutDocumentsRequest.Builder().apply {
-                chunk.forEach { n ->
-                    val gd = GenericDocument.Builder<GenericDocument>("notes", n.id)
-                        .setPropertyString("title", n.title)
-                        .setPropertyString("path", n.path)
-                        .setPropertyString("content", n.content)
-                        .setPropertyStringArray("tags", n.tags.toTypedArray())
-                        .setPropertyLong("updatedAt", n.updatedAt)
-                        .build()
-                    addGenericDocument(gd)
-                }
-            }.build()
+            val req = PutDocumentsRequest.Builder()
+                .addDocuments(chunk)
+                .build()
+            Log.d("AppSearch", "put chunk.size=${chunk.size}")
             s.putAsync(req).get()
+
             processed += chunk.size
             onProgress(processed, notes.size)
         }

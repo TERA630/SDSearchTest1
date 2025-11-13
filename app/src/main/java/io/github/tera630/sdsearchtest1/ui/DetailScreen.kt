@@ -21,7 +21,7 @@ import kotlinx.coroutines.launch
 @Composable
 fun DetailScreen(
     id: String,
-    repo: AppSearchRepository,
+    vm: MainViewModel,
     onBack: () -> Unit,
     onOpen:(String) -> Unit,
 ) {
@@ -30,7 +30,7 @@ fun DetailScreen(
 
     LaunchedEffect(id) {
         state = UiState.Loading // 初回実行時やIdが変更されたときにここが実行される。
-        runCatching { repo.findNoteById(id) }
+        runCatching { vm.loadNote(id)}
             .onSuccess { note ->
                 state = if (note != null) UiState.Ready(note) else UiState.NotFound
             }
@@ -69,7 +69,7 @@ fun DetailScreen(
                                     href.startsWith("doc:", ignoreCase = true) -> {
                                         val title = Uri.decode(href.removePrefix("doc:").trim())
                                         scope.launch {
-                                            val resolved = repo.findNoteIdByTitle(title)
+                                            val resolved = vm.loadNote(id)
                                             if (resolved != null) {
                                                 onOpen(resolved)
                                             } else {
