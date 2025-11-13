@@ -1,0 +1,13 @@
+package io.github.tera630.sdsearchtest1.data.appsearch
+
+import io.github.tera630.sdsearchtest1.domain.model.NoteDoc
+
+interface NoteIndexRepository {
+    suspend fun putAll(notes: List<NoteDoc>, onProgress: (processed: Int, total: Int) -> Unit = { _, _ -> }): Int
+    suspend fun clearAll()
+    suspend fun search(query: String, limit: Int = 100): List<io.github.tera630.sdsearchtest1.data.SearchHit>
+    suspend fun findById(id: String): NoteDoc?
+}
+
+
+data class SearchHit(val id: String, val path: String, val title: String, val snippet: String)

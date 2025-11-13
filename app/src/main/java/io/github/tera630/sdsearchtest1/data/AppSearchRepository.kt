@@ -15,6 +15,10 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.util.UUID
 import androidx.appsearch.app.GetByDocumentIdRequest
+import io.github.tera630.sdsearchtest1.data.appsearch.SearchHit
+import io.github.tera630.sdsearchtest1.domain.model.NoteDoc
+import io.github.tera630.sdsearchtest1.domain.service.nfkc
+import io.github.tera630.sdsearchtest1.domain.service.parseTagsFromText
 import kotlin.text.split
 class AppSearchRepository(private val context: Context) : NoteIndex {
     private val linkTargetInsideParens = Regex("""(?<=]\()(.+?)(?=\))""")
@@ -68,7 +72,8 @@ class AppSearchRepository(private val context: Context) : NoteIndex {
         val duplicates = mutableListOf<String>() // タイトルが重複した場合はこちらのリストに入る。
         for (f in mdFiles) {
             val rawTitle = f.name?.removeSuffix(".md") ?: "untitled"
-            val title = nfkc(rawTitle)                 // 既存の正規化関数を利用（NFKC）:contentReference[Title:1]{index=1}
+            val title =
+                nfkc(rawTitle)                 // 既存の正規化関数を利用（NFKC）:contentReference[Title:1]{index=1}
             val id = stableId(f.uri.toString())
             val key = title.lowercase()
             if (titleToId.containsKey(key)) {
@@ -255,9 +260,9 @@ class AppSearchRepository(private val context: Context) : NoteIndex {
             updatedAt = doc.getPropertyLong("updatedAt")
         )
     }
-    override suspend fun resolveTitleToId(title: String): String? {
+    override suspend fun findNoteIdByTitle(title: String): String? {
         val note = findNoteByTitle(title)
-        if (note == null) {
+        return if (note == null) {
             Log.w("resolveTitleTold", "no document was found by $title")
             return null
         } else {
@@ -265,7 +270,6 @@ class AppSearchRepository(private val context: Context) : NoteIndex {
             Log.i("resolveTitleTold", "found document id $resolvedId by $title")
             resolvedId
         }
-        return null
     }
 
     suspend fun parseLinks(raw: String, titleToId:Map<String,String>): String {
@@ -314,11 +318,5 @@ class AppSearchRepository(private val context: Context) : NoteIndex {
 interface NoteIndex {
     suspend fun findNoteById(id: String): NoteDoc?
     suspend fun findNoteByTitle(title: String): NoteDoc?
-    suspend fun resolveTitleToId(title: String): String? // タイトルからDocid
+    suspend fun findNoteIdByTitle(title: String): String? // タイトルからDocid
 }
-data class SearchHit(
-    val id: String,
-    val path: String,
-    val title: String,
-    val snippet: String
-) //　虫垂炎

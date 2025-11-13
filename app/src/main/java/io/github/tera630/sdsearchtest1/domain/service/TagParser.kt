@@ -1,4 +1,4 @@
-package io.github.tera630.sdsearchtest1.data
+package io.github.tera630.sdsearchtest1.domain.service
 import java.text.Normalizer
 
 private val tagLineRegex = Regex("""^\s*(tag|tags|Tag|Tags|TAG|TAGs|タグ)\s*:\s*(.+)$""")

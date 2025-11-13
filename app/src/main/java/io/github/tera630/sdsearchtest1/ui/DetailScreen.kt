@@ -14,7 +14,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import dev.jeziellago.compose.markdowntext.MarkdownText
 import io.github.tera630.sdsearchtest1.data.AppSearchRepository
-import io.github.tera630.sdsearchtest1.data.NoteDoc
+import io.github.tera630.sdsearchtest1.domain.model.NoteDoc
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -69,7 +69,7 @@ fun DetailScreen(
                                     href.startsWith("doc:", ignoreCase = true) -> {
                                         val title = Uri.decode(href.removePrefix("doc:").trim())
                                         scope.launch {
-                                            val resolved = repo.resolveTitleToId(title)
+                                            val resolved = repo.findNoteIdByTitle(title)
                                             if (resolved != null) {
                                                 onOpen(resolved)
                                             } else {
