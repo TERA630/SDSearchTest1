@@ -2,7 +2,7 @@ package io.github.tera630.sdsearchtest1.ui
 import android.net.Uri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import io.github.tera630.sdsearchtest1.data.appsearch.SearchHit
+import io.github.tera630.sdsearchtest1.domain.repo.SearchHit
 import io.github.tera630.sdsearchtest1.data.IndexStateStore
 import io.github.tera630.sdsearchtest1.domain.usecase.FindNoteByIdUseCase
 import io.github.tera630.sdsearchtest1.domain.usecase.IndexNotesUseCase

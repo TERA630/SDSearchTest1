@@ -68,14 +68,7 @@ fun DetailScreen(
                                     }
                                     href.startsWith("doc:", ignoreCase = true) -> {
                                         val title = Uri.decode(href.removePrefix("doc:").trim())
-                                        scope.launch {
-                                            val resolved = vm.loadNote(id)
-                                            if (resolved != null) {
-                                                onOpen(resolved)
-                                            } else {
-                                                Log.w("DetailScreen", "Failed to resolve title: $title")
-                                            }
-                                        }
+                                        Log.d("detailScreen","$title was Clicked")
                                     }
                                     else -> {
                                         Log.d("DetailScreen", "pass-through $href")

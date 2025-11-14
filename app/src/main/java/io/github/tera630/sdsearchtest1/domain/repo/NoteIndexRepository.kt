@@ -1,4 +1,4 @@
-package io.github.tera630.sdsearchtest1.data.appsearch
+package io.github.tera630.sdsearchtest1.domain.repo
 
 import io.github.tera630.sdsearchtest1.domain.model.NoteDoc
 

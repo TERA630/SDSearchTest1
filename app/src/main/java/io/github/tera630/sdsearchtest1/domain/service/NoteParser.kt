@@ -1,14 +1,12 @@
 package io.github.tera630.sdsearchtest1.domain.service
 
-import java.net.URLEncoder
+import android.util.Log
 
-class NoteParser(
-    private val linkResolver: (normalizedTitle: String) -> String? // returns docId or null
-) {
+class NoteParser() {
     private val wikilink = Regex("""\[([^\[]+)]]""")
     private val linkTargetInsideParens = Regex("""(?<=]\()(.+?)(?=\))""")
 
-    fun parseContent(raw: String, normalize: (String) -> String): String {
+    fun parseContent(raw: String, titleToId:Map<String,String>): String {
         // [[title]] → [title](title)
         val stage1 = wikilink.replace(raw) { m -> "[${m.groupValues[1]}](${m.groupValues[1]})" }
         val sb = StringBuilder()
@@ -23,8 +21,16 @@ class NoteParser(
             val rep = if (passThrough) {
                 target
             } else {
-                val key = normalize(target).lowercase()
-                linkResolver(key)?.let { id -> "docid:$id" } ?: ("doc:" + URLEncoder.encode(target, "UTF-8"))
+                val key = nfkc(target).lowercase()
+                titleToId[key]?.let{ id->
+                    val rep = "docid:$id"
+                    Log.d("parseContent","$key was parsed int $rep")
+                    rep
+                } ?: run{
+                    // リンク解決不能
+                    Log.w("parseContent","no id was associated by $target")
+                    target
+                }
             }
             sb.append(rep)
             last = m.range.last + 1

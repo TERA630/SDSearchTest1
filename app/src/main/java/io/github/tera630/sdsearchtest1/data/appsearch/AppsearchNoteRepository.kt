@@ -6,6 +6,8 @@ import android.util.Log
 import androidx.appsearch.app.*
 import androidx.appsearch.localstorage.LocalStorage
 import io.github.tera630.sdsearchtest1.domain.model.NoteDoc
+import io.github.tera630.sdsearchtest1.domain.repo.NoteIndexRepository
+import io.github.tera630.sdsearchtest1.domain.repo.SearchHit
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
@@ -32,39 +34,58 @@ class AppSearchNoteRepository(private val context: Context) : NoteIndexRepositor
         } // 　NoteDocを登録した検索セッションを初回は作成し、class propertyに保存。2回目以降は保存したセッションを返す。
 
 
-    override suspend fun putAll(notes: List<NoteDoc>, onProgress: (Int, Int) -> Unit): Int {
+    override suspend fun putAll(notes: List<NoteDoc>, onProgress: (Int, Int) -> Unit): Int
+    = withContext(Dispatchers.IO){
         val s = ensureSession()
         // 100件ずつバッチ
         var processed = 0
+        Log.d("AppSearchNoteRepository", "notes.size=${notes.size}")
+
         notes.chunked(100).forEach { chunk ->
             val req = PutDocumentsRequest.Builder()
                 .addDocuments(chunk)
                 .build()
-            Log.d("AppSearch", "put chunk.size=${chunk.size}")
             s.putAsync(req).get()
 
             processed += chunk.size
             onProgress(processed, notes.size)
         }
-        return notes.size
+        notes.size
     }
 
     override suspend fun clearAll() {
         val s = ensureSession()
         val spec = SearchSpec.Builder().addFilterNamespaces("notes").build()
         s.removeAsync("", spec).get()
+        Log.d("clearAll","index was removed.")
     }
 
     override suspend fun search(query: String, limit: Int): List<SearchHit> {
         val s = ensureSession()
-        val spec = SearchSpec.Builder()
+        val specBuilder = SearchSpec.Builder()
             .addFilterNamespaces("notes")
             .setTermMatch(SearchSpec.TERM_MATCH_PREFIX)
             .setResultCountPerPage(limit)
             .setSnippetCount(1)
             .setSnippetCountPerProperty(1)
             .setMaxSnippetSize(120)
-            .build()
+            .setRankingStrategy(SearchSpec.RANKING_STRATEGY_RELEVANCE_SCORE)
+
+        val features: Features = s.features
+        val isWeightSupported = features.isFeatureSupported(Features.SEARCH_SPEC_PROPERTY_WEIGHTS)
+        if(isWeightSupported){
+            specBuilder.setPropertyWeightPaths(
+                "noteDoc",
+                mapOf(
+                    PropertyPath("tags") to 5.0,
+                    PropertyPath("title") to 2.0,
+                    PropertyPath("content") to 1.0
+                    )
+            )
+        }
+        Log.d("AppSearchNoteRepository", "weightSupported={$isWeightSupported}")
+
+        val spec = specBuilder.build()
         val page = s.search(query, spec).nextPageAsync.get()
         return page.map { r ->
             val g = r.genericDocument

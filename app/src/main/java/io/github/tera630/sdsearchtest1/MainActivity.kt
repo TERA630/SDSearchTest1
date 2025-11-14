@@ -26,7 +26,7 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         val fileRepo = AndroidFileRepository(this)
         val noteIndexRepo = AppSearchNoteRepository(this)
-        val noteParser = io.github.tera630.sdsearchtest1.domain.service.NoteParser(normalizedTitle->null)
+        val noteParser = io.github.tera630.sdsearchtest1.domain.service.NoteParser()
 
         val indexNotesUseCase = IndexNotesUseCase(
             fileRepo = fileRepo,
@@ -71,7 +71,7 @@ class MainActivity : ComponentActivity() {
                         vm = vm,
                         onBack = { nav.popBackStack() },
                         onOpen = { newId ->
-                            nav.navigate("detail?$id")
+                            nav.navigate("detail?$newId")
                         })
                 }
             }

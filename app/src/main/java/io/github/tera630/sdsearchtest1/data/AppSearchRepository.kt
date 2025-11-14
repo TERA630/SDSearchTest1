@@ -15,12 +15,12 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.util.UUID
 import androidx.appsearch.app.GetByDocumentIdRequest
-import io.github.tera630.sdsearchtest1.data.appsearch.SearchHit
+import io.github.tera630.sdsearchtest1.domain.repo.SearchHit
 import io.github.tera630.sdsearchtest1.domain.model.NoteDoc
 import io.github.tera630.sdsearchtest1.domain.service.nfkc
 import io.github.tera630.sdsearchtest1.domain.service.parseTagsFromText
 import kotlin.text.split
-class AppSearchRepository(private val context: Context) : NoteIndex {
+class AppSearchRepository(private val context: Context) {
     private val linkTargetInsideParens = Regex("""(?<=]\()(.+?)(?=\))""")
     // ］と（の連続があった直後の部位でかつ、)が直後にある　文字列に最短マッチ＝　[リンクテキスト（注釈1）](リンク先(注釈2))
     private val wikilink = Regex("""\[([^\[]+)]]""")
@@ -219,7 +219,7 @@ class AppSearchRepository(private val context: Context) : NoteIndex {
         }
     private fun stableId(path: String): String =
         UUID.nameUUIDFromBytes(path.toByteArray()).toString()
-    override suspend fun findNoteById(id: String): NoteDoc? = withContext(Dispatchers.IO) {
+    suspend fun findNoteById(id: String): NoteDoc? = withContext(Dispatchers.IO) {
         val s = ensureSession()
         val req = GetByDocumentIdRequest.Builder("notes")
             .addIds(id)
@@ -232,7 +232,7 @@ class AppSearchRepository(private val context: Context) : NoteIndex {
         }
         gd?.toDocumentClass(NoteDoc::class.java)
     }
-    override suspend fun findNoteByTitle(title: String): NoteDoc? = withContext(Dispatchers.IO) {
+    suspend fun findNoteByTitle(title: String): NoteDoc? = withContext(Dispatchers.IO) {
         val s = ensureSession()
         val propertyPaths = mutableListOf("title")
 
@@ -260,7 +260,7 @@ class AppSearchRepository(private val context: Context) : NoteIndex {
             updatedAt = doc.getPropertyLong("updatedAt")
         )
     }
-    override suspend fun findNoteIdByTitle(title: String): String? {
+    suspend fun findNoteIdByTitle(title: String): String? {
         val note = findNoteByTitle(title)
         return if (note == null) {
             Log.w("resolveTitleTold", "no document was found by $title")
@@ -315,8 +315,4 @@ class AppSearchRepository(private val context: Context) : NoteIndex {
             return result.toString()
         }
 }
-interface NoteIndex {
-    suspend fun findNoteById(id: String): NoteDoc?
-    suspend fun findNoteByTitle(title: String): NoteDoc?
-    suspend fun findNoteIdByTitle(title: String): String? // タイトルからDocid
-}
+

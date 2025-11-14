@@ -3,7 +3,7 @@ package io.github.tera630.sdsearchtest1.data.local
 import android.content.Context
 import android.net.Uri
 import androidx.documentfile.provider.DocumentFile
-import io.github.tera630.sdsearchtest1.data.local.FileRepository
+import io.github.tera630.sdsearchtest1.domain.repo.FileRepository
 import java.text.Normalizer
 import java.util.UUID
 

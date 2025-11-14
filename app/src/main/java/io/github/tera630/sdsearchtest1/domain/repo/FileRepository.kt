@@ -1,4 +1,4 @@
-package io.github.tera630.sdsearchtest1.data.local
+package io.github.tera630.sdsearchtest1.domain.repo
 
 import android.net.Uri
 import androidx.documentfile.provider.DocumentFile
