@@ -28,10 +28,11 @@ class MainViewModel(
 
     fun reindexAll(treeUri: Uri) {
         viewModelScope.launch {
+
             _isIndexing.value = true
             _progress.value = IndexProgress(total = 0, processed = 0)
             runCatching {
-                indexNotes(treeUri){p,t ->
+                indexNotes(treeUri){p,t -> // indexNoteUseCase.Invoke
                     _progress.value = IndexProgress(total = t, processed = p)
                 }
             }.onSuccess {
@@ -47,5 +48,5 @@ class MainViewModel(
     fun search(q: String) {
         viewModelScope.launch { _hits.value = searchNotes(q) }
     }
-    suspend fun loadNote(id:String) = findById(id)
+    suspend fun loadNote(id:String) = findById(id) // findNoteByIdUseCase.Invoke = NoteIndexRepository.findById = AppSearchNoteRepository.findById
 }

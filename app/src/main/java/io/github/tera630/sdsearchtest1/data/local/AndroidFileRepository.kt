@@ -2,9 +2,10 @@ package io.github.tera630.sdsearchtest1.data.local
 
 import android.content.Context
 import android.net.Uri
+import android.util.Log
 import androidx.documentfile.provider.DocumentFile
 import io.github.tera630.sdsearchtest1.domain.repo.FileRepository
-import java.text.Normalizer
+import io.github.tera630.sdsearchtest1.domain.service.nfkc
 import java.util.UUID
 
 class AndroidFileRepository(private val context: Context) : FileRepository {
@@ -29,15 +30,31 @@ class AndroidFileRepository(private val context: Context) : FileRepository {
     override fun fileTitle(file: DocumentFile): String =
         (file.name ?: "untitled").removeSuffix(".md")
 
-    override fun stableId(path: String): String =
-        UUID.nameUUIDFromBytes(path.toByteArray()).toString()
+    override fun stableId(uriString: String): String =
+        UUID.nameUUIDFromBytes(uriString.toByteArray()).toString()
 
-    override fun buildTitleIdMap(files: List<DocumentFile>): Map<String, String> =
-        linkedMapOf<String, String>().also { map ->
-            files.forEach { f ->
-                val t = fileTitle(f)
-                val key = Normalizer.normalize(t, Normalizer.Form.NFKC).trim().lowercase()
-                map.putIfAbsent(key, stableId(f.uri.toString()))
+    override fun buildTitleIdMap(files: List<DocumentFile>): Map<String, String> {
+
+        val titleMapStartTime = System.currentTimeMillis()
+        val titleToId = LinkedHashMap<String, String>()
+        val duplicates = mutableListOf<String>() // タイトルが重複した場合はこちらのリストに入る。
+        for (f in files) {
+            val rawTitle = f.name?.removeSuffix(".md") ?: "untitled"
+            val nfkcTitle = nfkc(rawTitle)                 // 既存の正規化関数を利用（NFKC）:contentReference[Title:1]{index=1}
+            val id = stableId(f.uri.toString())
+            val key = nfkcTitle
+            if (titleToId.containsKey(key)) {
+                duplicates += nfkcTitle                     // 重複の検出だけログに回す
+            } else {
+                Log.d("indexingPhase","$nfkcTitle was indexed as $id")
+                titleToId[key] = id
             }
         }
+        if (duplicates.isNotEmpty()) {
+            Log.w("indexingPhase", "duplicated titles: $duplicates") // ポリシー：先勝ち
+        }
+        val titleMapTime = System.currentTimeMillis() - titleMapStartTime
+        Log.d("indexingPhase", "title map making took $titleMapTime")
+        return titleToId
+    }
 }

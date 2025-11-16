@@ -20,7 +20,7 @@ import io.github.tera630.sdsearchtest1.domain.model.NoteDoc
 import io.github.tera630.sdsearchtest1.domain.service.nfkc
 import io.github.tera630.sdsearchtest1.domain.service.parseTagsFromText
 import kotlin.text.split
-class AppSearchRepository(private val context: Context) {
+/* class AppSearchRepository(private val context: Context) {
     private val linkTargetInsideParens = Regex("""(?<=]\()(.+?)(?=\))""")
     // ］と（の連続があった直後の部位でかつ、)が直後にある　文字列に最短マッチ＝　[リンクテキスト（注釈1）](リンク先(注釈2))
     private val wikilink = Regex("""\[([^\[]+)]]""")
@@ -75,7 +75,7 @@ class AppSearchRepository(private val context: Context) {
             val title =
                 nfkc(rawTitle)                 // 既存の正規化関数を利用（NFKC）:contentReference[Title:1]{index=1}
             val id = stableId(f.uri.toString())
-            val key = title.lowercase()
+            val key = title
             if (titleToId.containsKey(key)) {
                 duplicates += title                     // 重複の検出だけログに回す
             } else {
@@ -98,8 +98,8 @@ class AppSearchRepository(private val context: Context) {
                 // URI上のファイルからNoteDocの形式でDocumentFile構造を作成
                 val rawText = ins.bufferedReader(Charsets.UTF_8).readText()
                 val rawTitle = f.name?.removeSuffix(".md") ?: "untitled"
-                val title = nfkc(rawTitle)
-                val id = titleToId[title.lowercase()]!!
+                val nfkcTitle = nfkc(rawTitle)
+                val id = titleToId[nfkcTitle]!!
                 val updatedAt = (f.lastModified()).takeIf { it > 0 } ?: System.currentTimeMillis()
                 val tags = parseTagsFromText(rawText)
 
@@ -108,7 +108,7 @@ class AppSearchRepository(private val context: Context) {
                 notes += NoteDoc(
                     id = id,
                     path = f.uri.toString(),
-                    title = nfkc(title),
+                    title = nfkcTitle,
                     content = parsedText,
                     tags = tags,
                     updatedAt = updatedAt
@@ -219,6 +219,7 @@ class AppSearchRepository(private val context: Context) {
         }
     private fun stableId(path: String): String =
         UUID.nameUUIDFromBytes(path.toByteArray()).toString()
+
     suspend fun findNoteById(id: String): NoteDoc? = withContext(Dispatchers.IO) {
         val s = ensureSession()
         val req = GetByDocumentIdRequest.Builder("notes")
@@ -232,47 +233,9 @@ class AppSearchRepository(private val context: Context) {
         }
         gd?.toDocumentClass(NoteDoc::class.java)
     }
-    suspend fun findNoteByTitle(title: String): NoteDoc? = withContext(Dispatchers.IO) {
-        val s = ensureSession()
-        val propertyPaths = mutableListOf("title")
+}
 
-        val spec = SearchSpec.Builder()
-            .addFilterNamespaces("notes")
- //           .addFilterProperties(NoteDoc::class.java,propertyPaths)
-            .setTermMatch(SearchSpec.TERM_MATCH_EXACT_ONLY)
-            .setResultCountPerPage(1)
-            .build()
-
-        val query = nfkc(title)
-        val results = s.search(query, spec)
-        val page = results.nextPageAsync.get()
-        if (page.isNullOrEmpty()) {
-            Log.w("findNoteByTitle", "no document was found by $query")
-            return@withContext null
-        }
-        val doc = page.firstOrNull()?.genericDocument ?: return@withContext null
-        NoteDoc(
-            id = doc.id,
-            path = doc.getPropertyString("path") ?: "",
-            title = doc.getPropertyString("title") ?: "",
-            content = doc.getPropertyString("content") ?: "",
-            tags = doc.getPropertyStringArray("tags")?.toList().orEmpty(),
-            updatedAt = doc.getPropertyLong("updatedAt")
-        )
-    }
-    suspend fun findNoteIdByTitle(title: String): String? {
-        val note = findNoteByTitle(title)
-        return if (note == null) {
-            Log.w("resolveTitleTold", "no document was found by $title")
-            return null
-        } else {
-            val resolvedId = note.id
-            Log.i("resolveTitleTold", "found document id $resolvedId by $title")
-            resolvedId
-        }
-    }
-
-    suspend fun parseLinks(raw: String, titleToId:Map<String,String>): String {
+    /* suspend fun parseLinks(raw: String, titleToId:Map<String,String>): String {
             // [[title]] ウィキリンクを[title](title)に寄せる
             val stage1 = wikilink.replace(raw) { m ->
                 "[${m.groupValues[1]}](${m.groupValues[1]})"
@@ -296,11 +259,9 @@ class AppSearchRepository(private val context: Context) {
                 val replacement = if (passThrough) {
                     target
                 } else {
-                    val key = nfkc(target).lowercase()
+                    val key = nfkc(target)
                     titleToId[key]?.let { id ->
                         "docid:$id"
-                    } ?: run {
-                        ("doc:" + Uri.encode(target))
                     }
                 }
                 Log.d("parseLinks", "$target was parsed into $replacement")
@@ -314,5 +275,6 @@ class AppSearchRepository(private val context: Context) {
             }
             return result.toString()
         }
-}
+}*/
 
+*/

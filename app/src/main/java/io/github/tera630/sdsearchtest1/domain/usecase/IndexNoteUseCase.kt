@@ -1,11 +1,15 @@
 package io.github.tera630.sdsearchtest1.domain.usecase
 
 import android.net.Uri
+import android.provider.ContactsContract
+import android.util.Log
 import io.github.tera630.sdsearchtest1.domain.model.NoteDoc
 import io.github.tera630.sdsearchtest1.domain.repo.NoteIndexRepository
 import io.github.tera630.sdsearchtest1.domain.service.NoteParser
 import io.github.tera630.sdsearchtest1.domain.service.TagNormalizer
 import io.github.tera630.sdsearchtest1.domain.repo.FileRepository
+import java.nio.charset.Charset
+import java.util.UUID
 
 //　ファイルから､インデックス構築手順(UseCase)のロジック｡
 class IndexNotesUseCase(
@@ -14,19 +18,67 @@ class IndexNotesUseCase(
     private val indexRepo: NoteIndexRepository
 ) {
     suspend operator fun invoke(treeUri: Uri, onProgress: (Int, Int) -> Unit = { _, _ -> }): Int {
-        val files = fileRepo.collectMarkdownFiles(treeUri)
-        val titleToId = fileRepo.buildTitleIdMap(files)
+
         val normalize = TagNormalizer::nfkc
 
-        val notes = files.map { f ->
+        // インデックス作成前に前のインデックスを消去。
+        indexRepo.clearAll()
+
+        val notes = mutableListOf<NoteDoc>()
+        val unresolvedSummery = StringBuilder()
+        val fileCollectStart = System.currentTimeMillis()
+
+        val files = fileRepo.collectMarkdownFiles(treeUri)
+        val titleToId = fileRepo.buildTitleIdMap(files)
+        val total = files.size
+        val fileCollectTime = System.currentTimeMillis() - fileCollectStart
+
+        Log.d("IndexNotes", "$total files collection took $fileCollectTime ms")
+        val indexingMakingStartTime = System.currentTimeMillis()
+        onProgress(0, total)
+
+        for (f in files) {
             val raw = fileRepo.readText(f)
-            val title = normalize(fileRepo.fileTitle(f))
-            val id = titleToId[title.lowercase()]!!
-            val content = noteParser.parseContent(raw, titleToId)
+            val nfkcTitle = normalize(fileRepo.fileTitle(f))
+            val id = titleToId[nfkcTitle] !!
+            val parsed = noteParser.parseContent(raw, titleToId)
             val tags = noteParser.parseTagsFromText(raw, normalize)
             val updatedAt = fileRepo.lastModified(f)
-            NoteDoc(id = id, title = title, path = f.uri.toString(), content = content, tags = tags, updatedAt = updatedAt)
+
+            notes += NoteDoc(
+                id = id,
+                title = nfkcTitle,
+                path = f.uri.toString(),
+                content = parsed.content,
+                tags = tags,
+                updatedAt = updatedAt
+            )
+            if(parsed.unresolvedLinks.isNotEmpty()){
+                unresolvedSummery.appendLine("---${nfkcTitle}.md---")
+                unresolvedSummery.appendLine("未解決リンク")
+                parsed.unresolvedLinks.forEach { link ->
+                    unresolvedSummery.appendLine("・$link")
+                }
+                unresolvedSummery.appendLine()
+            }
         }
+        //  全てのファイル処理終了後
+        if(unresolvedSummery.isNotEmpty()){
+            val unresolvedCollection = unresolvedSummery.toString().trimEnd()
+            val unresolvedID = UUID.nameUUIDFromBytes("unresolved".toByteArray(Charsets.UTF_8)).toString()
+
+            notes += NoteDoc(
+                id = unresolvedID,
+                title = "未解決リンク",
+                path = "",
+                content = unresolvedCollection,
+                tags = emptyList(),
+                updatedAt = System.currentTimeMillis()
+            )
+        }
+        val indexingMakingTime = System.currentTimeMillis() - indexingMakingStartTime
+        Log.d("indexNotes", "indexing making took $indexingMakingTime ms")
+
         return indexRepo.putAll(notes, onProgress)
     }
 }

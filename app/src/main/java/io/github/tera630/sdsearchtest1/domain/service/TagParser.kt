@@ -5,7 +5,7 @@ private val tagLineRegex = Regex("""^\s*(tag|tags|Tag|Tags|TAG|TAGs|タグ)\s*:\
 
 /**
  * 例:
- * Tag: 虫垂炎 診断 治療 痙攣
+ * Tag: 虫垂炎 診断 治療 痙攣 尿路感染　急性腹症
  * Tag: 便秘, 大腸内視鏡 / 鎮静
  */
 fun parseTagsFromText(text: String): List<String> {

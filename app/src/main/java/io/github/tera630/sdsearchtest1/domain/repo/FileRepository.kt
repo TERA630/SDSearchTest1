@@ -8,6 +8,6 @@ interface FileRepository {
     suspend fun readText(file: DocumentFile): String
     suspend fun lastModified(file: DocumentFile): Long
     fun fileTitle(file: DocumentFile): String // ".md" なし
-    fun stableId(path: String): String
-    fun buildTitleIdMap(files: List<DocumentFile>): Map<String, String> // normalizedTitle.lowercase -> id
+    fun stableId(uriString: String): String
+    fun buildTitleIdMap(files: List<DocumentFile>): Map<String, String> // normalizedTitle -> id
 }

@@ -1,5 +1,6 @@
 package io.github.tera630.sdsearchtest1.ui
 import android.net.Uri
+import android.util.Log
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -111,6 +112,7 @@ private fun ResultList(hits: List<SearchHit>, onOpen: (String) -> Unit) {
                     .clickable( enabled = true,
                         onClick = {
                             onOpen(h.id)
+                            Log.d("searchScreen","${h.title} : id=${h.id} was opened")
                         } // Click時は呼び出し元からDetailScreenへIDを渡してNavigateのラムダをもらってるので､それが開く｡
                     )
             )

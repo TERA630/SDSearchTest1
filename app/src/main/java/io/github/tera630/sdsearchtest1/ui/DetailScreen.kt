@@ -13,9 +13,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import dev.jeziellago.compose.markdowntext.MarkdownText
-import io.github.tera630.sdsearchtest1.data.AppSearchRepository
 import io.github.tera630.sdsearchtest1.domain.model.NoteDoc
-import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -25,7 +23,7 @@ fun DetailScreen(
     onBack: () -> Unit,
     onOpen:(String) -> Unit,
 ) {
-    var state by remember { mutableStateOf<UiState>(UiState.Loading) }
+    var state by remember(id) { mutableStateOf<UiState>(UiState.Loading) }
     val scope = rememberCoroutineScope()
 
     LaunchedEffect(id) {
@@ -58,17 +56,14 @@ fun DetailScreen(
                             markdown = s.note.content,   // ← インデックスに保存した本文を表示
                             modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
                             onLinkClicked = { href ->
-                                Log.d("DetailScreen", "$href was clicked")
                                 when {
                                     href.startsWith("docid:", ignoreCase = true) -> {
-                                        val targetId = href.removePrefix("docid:").trim()
+                                        // docidのリンクをクリックしたとき。
+                                        val targetId = href.removePrefix("docid:")
                                         if (targetId.isNotEmpty()) {
+                                            Log.d("detailScreen","$targetId was Clicked")
                                             onOpen(targetId)
                                         }
-                                    }
-                                    href.startsWith("doc:", ignoreCase = true) -> {
-                                        val title = Uri.decode(href.removePrefix("doc:").trim())
-                                        Log.d("detailScreen","$title was Clicked")
                                     }
                                     else -> {
                                         Log.d("DetailScreen", "pass-through $href")

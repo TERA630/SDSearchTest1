@@ -2,6 +2,7 @@ package io.github.tera630.sdsearchtest1
 
 import android.net.Uri
 import android.os.Bundle
+import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.lifecycle.ViewModel
@@ -12,7 +13,6 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
-import io.github.tera630.sdsearchtest1.data.AppSearchRepository
 import io.github.tera630.sdsearchtest1.data.IndexStateStore
 import io.github.tera630.sdsearchtest1.data.appsearch.AppSearchNoteRepository
 import io.github.tera630.sdsearchtest1.data.local.AndroidFileRepository
@@ -56,6 +56,7 @@ class MainActivity : ComponentActivity() {
             NavHost(navController = nav, startDestination = "search") {
                 composable("search") {
                     SearchScreen(vm = vm, onOpen = { id ->
+                        Log.d("MainActivity", "onOpenSearch: $id")
                         nav.navigate("detail?id=${Uri.encode(id)}")
 
                     }) // SearchScreen内部で検索結果のアイテムクリック時で起動するラムダを渡す｡
@@ -71,7 +72,9 @@ class MainActivity : ComponentActivity() {
                         vm = vm,
                         onBack = { nav.popBackStack() },
                         onOpen = { newId ->
-                            nav.navigate("detail?$newId")
+                            val encodedId = Uri.encode(newId)
+                            Log.d("MainActivity", "onOpenDetail: $encodedId of $newId")
+                            nav.navigate("detail?id=${Uri.encode(newId)}")
                         })
                 }
             }
