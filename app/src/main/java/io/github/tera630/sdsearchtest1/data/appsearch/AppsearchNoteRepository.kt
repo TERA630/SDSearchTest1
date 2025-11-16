@@ -39,7 +39,6 @@ class AppSearchNoteRepository(private val context: Context) : NoteIndexRepositor
         val s = ensureSession()
         // 100件ずつバッチ
         var processed = 0
-        Log.d("AppSearchNoteRepository", "notes.size=${notes.size}")
 
         notes.chunked(100).forEach { chunk ->
             val req = PutDocumentsRequest.Builder()

@@ -61,7 +61,6 @@ fun DetailScreen(
                                         // docidのリンクをクリックしたとき。
                                         val targetId = href.removePrefix("docid:")
                                         if (targetId.isNotEmpty()) {
-                                            Log.d("detailScreen","$targetId was Clicked")
                                             onOpen(targetId)
                                         }
                                     }

@@ -39,7 +39,7 @@ class AndroidFileRepository(private val context: Context) : FileRepository {
         val titleToId = LinkedHashMap<String, String>()
         val duplicates = mutableListOf<String>() // タイトルが重複した場合はこちらのリストに入る。
         for (f in files) {
-            val rawTitle = f.name?.removeSuffix(".md") ?: "untitled"
+            val rawTitle = fileTitle(f)
             val nfkcTitle = nfkc(rawTitle)                 // 既存の正規化関数を利用（NFKC）:contentReference[Title:1]{index=1}
             val id = stableId(f.uri.toString())
             val key = nfkcTitle

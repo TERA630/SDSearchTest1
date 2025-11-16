@@ -35,7 +35,6 @@ class NoteParser() {
                 val key = nfkc(target) .trim()
                 titleToId[key]?.let{ id->
                     val replace = "docid:$id"
-                    Log.d("parseContent","$key was parsed int $replace")
                     replace
                 } ?: run{
                     // 解決不能なリンク(タイトル間違いやタイトルを持つファイルがない)

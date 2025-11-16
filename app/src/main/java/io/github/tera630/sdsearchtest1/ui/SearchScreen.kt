@@ -112,7 +112,6 @@ private fun ResultList(hits: List<SearchHit>, onOpen: (String) -> Unit) {
                     .clickable( enabled = true,
                         onClick = {
                             onOpen(h.id)
-                            Log.d("searchScreen","${h.title} : id=${h.id} was opened")
                         } // Click時は呼び出し元からDetailScreenへIDを渡してNavigateのラムダをもらってるので､それが開く｡
                     )
             )

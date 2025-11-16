@@ -60,11 +60,6 @@ import kotlin.text.split
 
         val mdFiles = mutableListOf<DocumentFile>().also { collect(root, it) } // 全ファイル取得
         val total = mdFiles.size
-        Log.d("indexAllFromTree", "対象フォルダのファイル数は${total}")
-
-        val indexBeginTime = System.currentTimeMillis()
-        Log.d("indexAllFromTree", "indexing has began at $indexBeginTime")
-
         onProgress(0, total)
 
         //　タイトル：ID　の　対応map 作成
@@ -86,10 +81,8 @@ import kotlin.text.split
             Log.w("Index", "duplicated titles: $duplicates") // ポリシー：先勝ち
         }
         val titleMapTime = System.currentTimeMillis() - indexBeginTime
-        Log.d("indexAllFromTree", "title map making took $titleMapTime")
 
         //　インデックス開始
-
         var processed = 0
         val notes = mutableListOf<NoteDoc>()   // ← NoteDoc を貯めるリスト
 
@@ -127,7 +120,6 @@ import kotlin.text.split
             val req = PutDocumentsRequest.Builder()
                 .addDocuments(chunk)       // ← 型付きドキュメント
                 .build()
-            Log.d("AppSearch", "put chunk.size=${chunk.size}")
             s.putAsync(req).get()
         }
         val indexTime = System.currentTimeMillis() - indexBeginTime

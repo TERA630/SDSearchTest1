@@ -56,7 +56,6 @@ class MainActivity : ComponentActivity() {
             NavHost(navController = nav, startDestination = "search") {
                 composable("search") {
                     SearchScreen(vm = vm, onOpen = { id ->
-                        Log.d("MainActivity", "onOpenSearch: $id")
                         nav.navigate("detail?id=${Uri.encode(id)}")
 
                     }) // SearchScreen内部で検索結果のアイテムクリック時で起動するラムダを渡す｡
@@ -72,8 +71,6 @@ class MainActivity : ComponentActivity() {
                         vm = vm,
                         onBack = { nav.popBackStack() },
                         onOpen = { newId ->
-                            val encodedId = Uri.encode(newId)
-                            Log.d("MainActivity", "onOpenDetail: $encodedId of $newId")
                             nav.navigate("detail?id=${Uri.encode(newId)}")
                         })
                 }
