@@ -9,7 +9,7 @@ espressoCore = "3.7.0"
 lifecycleRuntimeKtx = "2.9.4"
 
 # Compose
-compose-bom = "2025.10.01"
+compose-bom = "2025.11.00"
 compose-compiler = "1.6.10"
 
 # AndroidX

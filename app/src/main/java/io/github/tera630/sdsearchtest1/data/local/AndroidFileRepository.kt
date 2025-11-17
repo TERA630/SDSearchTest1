@@ -44,9 +44,9 @@ class AndroidFileRepository(private val context: Context) : FileRepository {
             val id = stableId(f.uri.toString())
             val key = nfkcTitle
             if (titleToId.containsKey(key)) {
-                duplicates += nfkcTitle                     // 重複の検出だけログに回す
+                duplicates += nfkcTitle                     // 重複はログに回す
             } else {
-                Log.d("indexingPhase","$nfkcTitle was indexed as $id")
+                Log.d("indexingPhase", "mapping: $nfkcTitle -> $id")
                 titleToId[key] = id
             }
         }
@@ -54,7 +54,7 @@ class AndroidFileRepository(private val context: Context) : FileRepository {
             Log.w("indexingPhase", "duplicated titles: $duplicates") // ポリシー：先勝ち
         }
         val titleMapTime = System.currentTimeMillis() - titleMapStartTime
-        Log.d("indexingPhase", "title map making took $titleMapTime")
+        Log.d("indexingPhase", "title map making took $titleMapTime ms" )
         return titleToId
     }
 }

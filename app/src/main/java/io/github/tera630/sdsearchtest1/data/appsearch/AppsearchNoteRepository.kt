@@ -105,6 +105,7 @@ class AppSearchNoteRepository(private val context: Context) : NoteIndexRepositor
     }
 
     override suspend fun findById(id: String): NoteDoc? {
+        val findStartTime = System.currentTimeMillis()
         val s = ensureSession()
         val req = GetByDocumentIdRequest.Builder("notes").addIds(id).build()
         val res = s.getByDocumentIdAsync(req).get()
@@ -114,6 +115,8 @@ class AppSearchNoteRepository(private val context: Context) : NoteIndexRepositor
             Log.w("findById","$id was not found.")
             return null
         }
+        val findTime = System.currentTimeMillis() - findStartTime
+        Log.d("AppSearchNoteRepository", "findById took $findTime ms")
 
         return NoteDoc(
             id = g.id,

@@ -2,7 +2,6 @@ package io.github.tera630.sdsearchtest1
 
 import android.net.Uri
 import android.os.Bundle
-import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.lifecycle.ViewModel
@@ -17,6 +16,8 @@ import io.github.tera630.sdsearchtest1.data.IndexStateStore
 import io.github.tera630.sdsearchtest1.data.appsearch.AppSearchNoteRepository
 import io.github.tera630.sdsearchtest1.data.local.AndroidFileRepository
 import io.github.tera630.sdsearchtest1.domain.usecase.IndexNotesUseCase
+import io.github.tera630.sdsearchtest1.domain.usecase.SearchNotesUseCase
+import io.github.tera630.sdsearchtest1.domain.usecase.FindNoteByIdUseCase
 import io.github.tera630.sdsearchtest1.ui.DetailScreen
 import io.github.tera630.sdsearchtest1.ui.MainViewModel
 import io.github.tera630.sdsearchtest1.ui.SearchScreen
@@ -33,14 +34,15 @@ class MainActivity : ComponentActivity() {
             noteParser = noteParser,
             indexRepo = noteIndexRepo
         )
-        val searchNotesUseCase = io.github.tera630.sdsearchtest1.domain.usecase.SearchNotesUseCase(
+        val searchNotesUseCase = SearchNotesUseCase(
             indexRepo = noteIndexRepo
         )
-        val findByIdUseCase = io.github.tera630.sdsearchtest1.domain.usecase.FindNoteByIdUseCase(
+        val findByIdUseCase = FindNoteByIdUseCase(
             indexRepo = noteIndexRepo
         )
 
         val store = IndexStateStore(this)
+        //　各画面と遷移の宣言
 
         setContent {
             val nav = rememberNavController()
@@ -58,7 +60,7 @@ class MainActivity : ComponentActivity() {
                     SearchScreen(vm = vm, onOpen = { id ->
                         nav.navigate("detail?id=${Uri.encode(id)}")
 
-                    }) // SearchScreen内部で検索結果のアイテムクリック時で起動するラムダを渡す｡
+                    }) // 検索結果のアイテムクリック時で起動するラムダを渡す｡
                 }
                 composable(
                     route = "detail?id={id}",

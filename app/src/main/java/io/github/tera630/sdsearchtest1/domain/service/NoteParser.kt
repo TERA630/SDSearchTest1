@@ -7,6 +7,10 @@ import android.util.Log
 class NoteParser() {
     private val wikilink = Regex("""\[\[([^\[]+)]]""")
     private val linkTargetInsideParens = Regex("""(?<=]\()(.+?)(?=\))""")
+    private val headingRegEx = Regex(
+        pattern = """^(#{1,6})\s+(.+)$""" ,
+        options = setOf(RegexOption.MULTILINE)
+    )
 
     data class ContentsParsed (
         val content:String,
@@ -63,5 +67,10 @@ class NoteParser() {
             .map(normalize)
             .filter { it.isNotEmpty() }
             .distinct()
+    }
+    fun extractHeadings(markdown: String):String {
+        return headingRegEx.findAll(markdown)
+            .map { it.groupValues[2].trim() }
+            .joinToString("/")
     }
 }

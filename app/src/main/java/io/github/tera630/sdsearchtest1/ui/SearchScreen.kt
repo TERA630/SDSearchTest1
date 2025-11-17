@@ -112,7 +112,7 @@ private fun ResultList(hits: List<SearchHit>, onOpen: (String) -> Unit) {
                     .clickable( enabled = true,
                         onClick = {
                             onOpen(h.id)
-                        } // Click時は呼び出し元からDetailScreenへIDを渡してNavigateのラムダをもらってるので､それが開く｡
+                        } //　クリックしたアイテムのIDを渡し、詳細画面に遷移。
                     )
             )
             HorizontalDivider()

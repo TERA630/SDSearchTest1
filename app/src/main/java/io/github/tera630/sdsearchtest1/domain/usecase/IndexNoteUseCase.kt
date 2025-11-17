@@ -43,6 +43,7 @@ class IndexNotesUseCase(
             val id = titleToId[nfkcTitle] !!
             val parsed = noteParser.parseContent(raw, titleToId)
             val tags = noteParser.parseTagsFromText(raw, normalize)
+            val headings = noteParser.extractHeadings(raw)
             val updatedAt = fileRepo.lastModified(f)
 
             notes += NoteDoc(
@@ -51,6 +52,7 @@ class IndexNotesUseCase(
                 path = f.uri.toString(),
                 content = parsed.content,
                 tags = tags,
+                heading = headings,
                 updatedAt = updatedAt
             )
             if(parsed.unresolvedLinks.isNotEmpty()){
