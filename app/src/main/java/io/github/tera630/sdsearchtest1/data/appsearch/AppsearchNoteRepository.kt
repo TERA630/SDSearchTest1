@@ -39,6 +39,7 @@ class AppSearchNoteRepository(private val context: Context) : NoteIndexRepositor
         val s = ensureSession()
         // 100件ずつバッチ
         var processed = 0
+        val putDocumentBeginTime = System.currentTimeMillis()
 
         notes.chunked(100).forEach { chunk ->
             val req = PutDocumentsRequest.Builder()
@@ -49,6 +50,8 @@ class AppSearchNoteRepository(private val context: Context) : NoteIndexRepositor
             processed += chunk.size
             onProgress(processed, notes.size)
         }
+        val putDocumentTime = System.currentTimeMillis() - putDocumentBeginTime
+        Log.i("Indexing phase","putting Documents took $putDocumentTime ms")
         notes.size
     }
 
@@ -63,8 +66,8 @@ class AppSearchNoteRepository(private val context: Context) : NoteIndexRepositor
     override suspend fun search(query: String, limit: Int): List<SearchHit> {
         val s = ensureSession()
         val specBuilder = SearchSpec.Builder()
-            .addFilterSchemas(NoteDoc::class.java.simpleName)
             .addFilterNamespaces("notes")
+            .addFilterSchemas(NoteDoc::class.java.simpleName)
             .setTermMatch(SearchSpec.TERM_MATCH_PREFIX)
             .setResultCountPerPage(limit)
             .setSnippetCount(1)
@@ -73,18 +76,17 @@ class AppSearchNoteRepository(private val context: Context) : NoteIndexRepositor
             .setRankingStrategy(SearchSpec.RANKING_STRATEGY_RELEVANCE_SCORE)
 
         val features: Features = s.features
-        val isWeightSupported = features.isFeatureSupported(Features.SEARCH_SPEC_PROPERTY_WEIGHTS)
-        if(isWeightSupported){
+        if(features.isFeatureSupported(Features.SEARCH_SPEC_PROPERTY_WEIGHTS)){
             specBuilder.setPropertyWeightPaths(
                 "noteDoc",
                 mapOf(
-                    PropertyPath("tags") to 5.0,
                     PropertyPath("title") to 6.0,
+                    PropertyPath("tags") to 5.0,
+                    PropertyPath("heading") to 4.0,
                     PropertyPath("content") to 1.0
                     )
             )
         }
-        Log.d("AppSearchNoteRepository", "weightSupported={$isWeightSupported} on this device.")
 
         val spec = specBuilder.build()
         val searchStartTime = System.currentTimeMillis()

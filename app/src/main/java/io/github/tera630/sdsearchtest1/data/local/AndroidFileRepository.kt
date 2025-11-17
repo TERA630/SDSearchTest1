@@ -46,7 +46,7 @@ class AndroidFileRepository(private val context: Context) : FileRepository {
             if (titleToId.containsKey(key)) {
                 duplicates += nfkcTitle                     // 重複はログに回す
             } else {
-                Log.d("indexingPhase", "mapping: $nfkcTitle -> $id")
+             //   Log.d("indexingPhase", "mapping: $nfkcTitle -> $id")
                 titleToId[key] = id
             }
         }

@@ -1,14 +1,12 @@
 package io.github.tera630.sdsearchtest1.domain.usecase
 
 import android.net.Uri
-import android.provider.ContactsContract
 import android.util.Log
 import io.github.tera630.sdsearchtest1.domain.model.NoteDoc
 import io.github.tera630.sdsearchtest1.domain.repo.NoteIndexRepository
 import io.github.tera630.sdsearchtest1.domain.service.NoteParser
 import io.github.tera630.sdsearchtest1.domain.service.TagNormalizer
 import io.github.tera630.sdsearchtest1.domain.repo.FileRepository
-import java.nio.charset.Charset
 import java.util.UUID
 
 //　ファイルから､インデックス構築手順(UseCase)のロジック｡
@@ -27,13 +25,12 @@ class IndexNotesUseCase(
         val notes = mutableListOf<NoteDoc>()
         val unresolvedSummery = StringBuilder()
         val fileCollectStart = System.currentTimeMillis()
-
         val files = fileRepo.collectMarkdownFiles(treeUri)
-        val titleToId = fileRepo.buildTitleIdMap(files)
         val total = files.size
         val fileCollectTime = System.currentTimeMillis() - fileCollectStart
+        Log.d("Indexing phase", "$total files collection took $fileCollectTime ms")
 
-        Log.d("IndexNotes", "$total files collection took $fileCollectTime ms")
+        val titleToId = fileRepo.buildTitleIdMap(files)
         val indexingMakingStartTime = System.currentTimeMillis()
         onProgress(0, total)
 
