@@ -9,7 +9,7 @@ import io.github.tera630.sdsearchtest1.domain.service.TagNormalizer
 import io.github.tera630.sdsearchtest1.domain.repo.FileRepository
 import java.util.UUID
 
-//　ファイルから､インデックス構築手順(UseCase)のロジック｡
+//　指定されたURIのファイルから､インデックス(AndroidではDocument)を構築する手順(UseCase)　
 class IndexNotesUseCase(
     private val fileRepo: FileRepository,
     private val noteParser: NoteParser,
@@ -76,7 +76,7 @@ class IndexNotesUseCase(
             )
         }
         val indexingMakingTime = System.currentTimeMillis() - indexingMakingStartTime
-        Log.d("indexNotes", "indexing making took $indexingMakingTime ms")
+        Log.d("indexing phase", "documentClass making took $indexingMakingTime ms")
 
         return indexRepo.putAll(notes, onProgress)
     }

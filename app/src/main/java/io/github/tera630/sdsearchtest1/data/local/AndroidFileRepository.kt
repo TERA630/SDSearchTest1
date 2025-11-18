@@ -51,10 +51,10 @@ class AndroidFileRepository(private val context: Context) : FileRepository {
             }
         }
         if (duplicates.isNotEmpty()) {
-            Log.w("indexingPhase", "duplicated titles: $duplicates") // ポリシー：先勝ち
+            Log.w("indexing Phase", "duplicated titles: $duplicates") // ポリシー：先勝ち
         }
         val titleMapTime = System.currentTimeMillis() - titleMapStartTime
-        Log.d("indexingPhase", "title map making took $titleMapTime ms" )
+        Log.d("indexing Phase", "title map making took $titleMapTime ms" )
         return titleToId
     }
 }
