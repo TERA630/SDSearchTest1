@@ -15,7 +15,10 @@ class IndexNotesUseCase(
     private val noteParser: NoteParser,
     private val indexRepo: NoteIndexRepository
 ) {
-    suspend operator fun invoke(treeUri: Uri, onProgress: (Int, Int) -> Unit = { _, _ -> }): Int {
+    suspend operator fun invoke(
+        treeUri: Uri,
+        onProgress: (Int, Int) -> Unit = { _, _ -> }
+    ): Int {
 
         val normalize = TagNormalizer::nfkc
 
