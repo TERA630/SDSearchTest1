@@ -2,9 +2,9 @@ package io.github.tera630.sdsearchtest1.ui
 
 data class IndexProgress(
     val phase:IndexPhase,
-    val total: Int,
-    val processed: Int
-) {
+    val processed: Int,
+    val total: Int
+    ) {
     val fraction: Float get() = if (total == 0) 0f else processed.toFloat() / total
 }
 enum class IndexPhase {

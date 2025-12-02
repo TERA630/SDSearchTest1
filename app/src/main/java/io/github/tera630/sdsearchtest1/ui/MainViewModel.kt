@@ -7,9 +7,11 @@ import io.github.tera630.sdsearchtest1.data.IndexStateStore
 import io.github.tera630.sdsearchtest1.domain.usecase.FindNoteByIdUseCase
 import io.github.tera630.sdsearchtest1.domain.usecase.IndexNotesUseCase
 import io.github.tera630.sdsearchtest1.domain.usecase.SearchNotesUseCase
+import io.github.tera630.sdsearchtest1.ui.IndexPhase
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
+
 class MainViewModel(
     private val indexNotes: IndexNotesUseCase,
     private val searchNotes: SearchNotesUseCase,
@@ -30,10 +32,18 @@ class MainViewModel(
         viewModelScope.launch {
 
             _isIndexing.value = true
-            _progress.value = IndexProgress(total = 0, processed = 0)
+            _progress.value = IndexProgress(
+                phase = IndexPhase.FILE_SCANNING,
+                total = 0,
+                processed = 0)
+
             runCatching {
-                indexNotes(treeUri){p,t -> // indexNoteUseCase.Invoke
-                    _progress.value = IndexProgress(total = t, processed = p)
+                indexNotes(treeUri){ ph,t,pro -> // indexNoteUseCase.Invoke
+                    _progress.value = IndexProgress(
+                        phase = ph,
+                        total = t,
+                        processed = pro
+                    )
                 }
             }.onSuccess {
                 // 成功した場合のみ最終更新日時を保存

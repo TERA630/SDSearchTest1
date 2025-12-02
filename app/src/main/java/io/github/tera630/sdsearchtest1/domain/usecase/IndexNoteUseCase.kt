@@ -7,6 +7,7 @@ import io.github.tera630.sdsearchtest1.domain.repo.NoteIndexRepository
 import io.github.tera630.sdsearchtest1.domain.service.NoteParser
 import io.github.tera630.sdsearchtest1.domain.service.TagNormalizer
 import io.github.tera630.sdsearchtest1.domain.repo.FileRepository
+import io.github.tera630.sdsearchtest1.ui.IndexPhase
 import java.util.UUID
 
 //　ファイルから､インデックス構築手順(UseCase)のロジック｡
@@ -17,7 +18,7 @@ class IndexNotesUseCase(
 ) {
     suspend operator fun invoke(
         treeUri: Uri,
-        onProgress: (Int, Int) -> Unit = { _, _ -> }
+        onProgress: (phase: IndexPhase,processed:Int, total:Int) -> Unit = { _, _,_ -> }
     ): Int {
 
         val normalize = TagNormalizer::nfkc
@@ -35,7 +36,6 @@ class IndexNotesUseCase(
 
         val titleToId = fileRepo.buildTitleIdMap(files)
         val indexingMakingStartTime = System.currentTimeMillis()
-        onProgress(0, total)
 
         for (f in files) {
             val raw = fileRepo.readText(f)
@@ -81,6 +81,8 @@ class IndexNotesUseCase(
         val indexingMakingTime = System.currentTimeMillis() - indexingMakingStartTime
         Log.d("indexNotes", "indexing making took $indexingMakingTime ms")
 
-        return indexRepo.putAll(notes, onProgress)
+        return indexRepo.putAll(notes){ processed, totalNotes ->
+            onProgress(IndexPhase.DB_WRITING, processed, totalNotes)
+        }
     }
 }

@@ -15,7 +15,7 @@ import io.github.tera630.sdsearchtest1.domain.repo.SearchHit
 @Composable
 fun SearchScreen(
     vm: MainViewModel,
-    onOpen: (String) -> Unit
+    onOpen: (String) -> Unit // @param onOpen : item click時のコールバック
 ) {
     var q by remember { mutableStateOf("") }
     val hits by vm.hits.collectAsState()
@@ -40,6 +40,7 @@ fun SearchScreen(
             if (lastIndexedAt == null) {
                 Text("インデックス未作成です。SDカードのフォルダを選んでインデックスを作成してください。")
                 Spacer(Modifier.height(8.dp))
+
                 if (indexing) {
                     val p = progress
                     if (p == null || p.total == 0) {
