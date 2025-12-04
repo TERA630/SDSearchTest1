@@ -27,9 +27,10 @@ fun SearchScreen(
         topBar = {
             TopAppBar(
                 title = { Text("医療メモ検索") },
-                actions = { FolderPickerButton {
-                    uri: Uri -> vm.reindexAll(uri) } //FolderPickerButtonの終了時コールバックに
-                                                             //vm.reindexAllを呼び出す。(＝選んだフォルダでインデックス作成)
+                actions = { FolderPickerButton { uri: Uri ->
+                    vm.reindexAll(uri)
+                } //FolderPickerButtonの終了時コールバックに
+                  //vm.reindexAllを呼び出す。(＝選んだフォルダでインデックス作成)
                 }
             )
         }
@@ -38,7 +39,7 @@ fun SearchScreen(
 
             // ① インデックス作成前 → 作成UIのみ
             if (lastIndexedAt == null) {
-                Text("インデックス未作成です。SDカードのフォルダを選んでインデックスを作成してください。")
+                Text("インデックス未作成です。フォルダを選んでインデックスを作成してください。")
                 Spacer(Modifier.height(8.dp))
 
                 if (indexing) {
@@ -119,4 +120,33 @@ private fun ResultList(hits: List<SearchHit>, onOpen: (String) -> Unit) {
             HorizontalDivider()
         }
     }
+}
+@Composable
+private fun ProgressSection(p: IndexProgress?){
+    if(p == null){
+        LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
+        Spacer((Modifier.height(8.dp)))
+        Text("index making..")
+        return
+    }
+    if(p.total == 0) {
+        // 件数がまだ分からないフェーズ(ツリー走査)はインデターミネート
+        LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
+    } else {
+        LinearProgressIndicator(
+            progress = {p.fraction},
+            modifier = Modifier.fillMaxWidth()
+        )
+    }
+    Spacer(Modifier.height(8.dp))
+
+    val message = when(p.phase){
+        IndexPhase.FILE_SCANNING ->
+            "ファイル読み込み中.."
+        IndexPhase.INDEX_BUILDING ->
+            "インデックス作成中.. ${p.processed} / ${p.total}"
+        IndexPhase.DB_WRITING ->
+            "データベース作成中... ${p.processed} / ${p.total}"
+    }
+    Text(message)
 }

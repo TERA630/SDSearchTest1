@@ -51,7 +51,7 @@ class AppSearchNoteRepository(private val context: Context) : NoteIndexRepositor
             onProgress(processed, notes.size)
         }
         val putDocumentTime = System.currentTimeMillis() - putDocumentBeginTime
-        Log.i("Indexing phase","putting Documents took $putDocumentTime ms")
+        Log.d("Indexing phase","putting Documents took $putDocumentTime ms")
         notes.size
     }
 

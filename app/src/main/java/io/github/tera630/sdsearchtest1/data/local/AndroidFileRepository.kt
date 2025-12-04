@@ -35,7 +35,6 @@ class AndroidFileRepository(private val context: Context) : FileRepository {
 
     override fun buildTitleIdMap(files: List<DocumentFile>): Map<String, String> {
 
-        val titleMapStartTime = System.currentTimeMillis()
         val titleToId = LinkedHashMap<String, String>()
         val duplicates = mutableListOf<String>() // タイトルが重複した場合はこちらのリストに入る。
         for (f in files) {
@@ -53,8 +52,6 @@ class AndroidFileRepository(private val context: Context) : FileRepository {
         if (duplicates.isNotEmpty()) {
             Log.w("indexing Phase", "duplicated titles: $duplicates") // ポリシー：先勝ち
         }
-        val titleMapTime = System.currentTimeMillis() - titleMapStartTime
-        Log.d("indexing Phase", "title map making took $titleMapTime ms" )
         return titleToId
     }
 }
