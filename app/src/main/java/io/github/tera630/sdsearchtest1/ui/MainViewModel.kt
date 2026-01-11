@@ -33,23 +33,23 @@ class MainViewModel(
 
             _isIndexing.value = true
             _progress.value = IndexProgress(
-                phase = IndexPhase.FILE_SCANNING,
+                phase = IndexPhase.FILE_LOADING,
                 total = 0,
                 processed = 0)
 
             runCatching {
-                indexNotes(treeUri){ ph,t,pro -> // indexNoteUseCase.Invoke
+                indexNotes(treeUri){ ph, pro, t -> // IndexNoteUseCase.invoke
                     _progress.value = IndexProgress(
                         phase = ph,
-                        total = t,
-                        processed = pro
+                        processed = pro,
+                        total = t
                     )
                 }
             }.onSuccess {
                 // 成功した場合のみ最終更新日時を保存
                store.setLastIndexedAt(System.currentTimeMillis())
             }.onFailure{
-                android.util.Log.e("MainViewModel", "Re-indexing failed")
+                android.util.Log.e("MainViewModel", "Re-indexing failed", it)
             }
             _isIndexing.value = false
             _progress.value = null
@@ -58,5 +58,5 @@ class MainViewModel(
     fun search(q: String) {
         viewModelScope.launch { _hits.value = searchNotes(q) }
     }
-    suspend fun loadNote(id:String) = findById(id) // findNoteByIdUseCase.Invoke = NoteIndexRepository.findById = AppSearchNoteRepository.findById
+    suspend fun loadNote(id:String) = findById(id)
 }
