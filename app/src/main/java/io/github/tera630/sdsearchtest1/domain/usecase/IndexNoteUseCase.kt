@@ -98,7 +98,7 @@ class IndexNotesUseCase(
         Log.d("indexing phase", "documentFile making took $indexingMakingTime ms")
 
         // 4. インデックスのデーター登録 (DATA_REGISTERING)
-        return indexRepo.putAll(notes) { processed, totalNotes ->
+        return indexRepo.putAll(notes) { ph, processed, totalNotes ->
             onProgress(IndexPhase.DATA_REGISTERING, processed, totalNotes)
         }
     }

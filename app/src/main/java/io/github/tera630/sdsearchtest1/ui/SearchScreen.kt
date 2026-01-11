@@ -11,6 +11,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import io.github.tera630.sdsearchtest1.domain.repo.SearchHit
+import io.github.tera630.sdsearchtest1.ui.IndexPhase
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SearchScreen(
@@ -141,11 +142,13 @@ private fun ProgressSection(p: IndexProgress?){
     Spacer(Modifier.height(8.dp))
 
     val message = when(p.phase){
-        IndexPhase.FILE_SCANNING ->
+        IndexPhase.FILE_LOADING ->
             "ファイル読み込み中.."
-        IndexPhase.INDEX_BUILDING ->
+        IndexPhase.LINK_TABLE_CREATING ->
+            "リンクテーブル作成中.. ${p.processed} / ${p.total}"
+        IndexPhase.INDEX_CREATING ->
             "インデックス作成中.. ${p.processed} / ${p.total}"
-        IndexPhase.DB_WRITING ->
+        IndexPhase.DATA_REGISTERING ->
             "データベース作成中... ${p.processed} / ${p.total}"
     }
     Text(message)

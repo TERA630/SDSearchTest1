@@ -9,6 +9,7 @@ import androidx.appsearch.localstorage.LocalStorage
 import io.github.tera630.sdsearchtest1.domain.model.NoteDoc
 import io.github.tera630.sdsearchtest1.domain.repo.NoteIndexRepository
 import io.github.tera630.sdsearchtest1.domain.repo.SearchHit
+import io.github.tera630.sdsearchtest1.ui.IndexPhase
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
@@ -34,7 +35,7 @@ class AppSearchNoteRepository(private val context: Context) : NoteIndexRepositor
             resolvedSession
         } // 　NoteDocを登録した検索セッションを初回は作成し、class propertyに保存。2回目以降は保存したセッションを返す。
 
-    override suspend fun putAll(notes: List<NoteDoc>, onProgress: (Int, Int) -> Unit): Int
+    override suspend fun putAll(notes: List<NoteDoc>, onProgress: (IndexPhase,Int, Int) -> Unit): Int
     = withContext(Dispatchers.IO){
         val s = ensureSession()
         // 100件ずつバッチ
@@ -48,7 +49,7 @@ class AppSearchNoteRepository(private val context: Context) : NoteIndexRepositor
             s.putAsync(req).get()
 
             processed += chunk.size
-            onProgress(processed, notes.size)
+            onProgress(IndexPhase.DATA_REGISTERING, processed, notes.size)
         }
         val putDocumentTime = System.currentTimeMillis() - putDocumentBeginTime
         Log.d("Indexing phase","putting Documents took $putDocumentTime ms")
